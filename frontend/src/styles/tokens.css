@@ -1,0 +1,31 @@
+/* Design tokens (README section 5). Flat colours only.
+   Tailwind turns each --color-* into utilities: bg-primary, text-muted, border-line, ... */
+@theme {
+  --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
+
+  --color-primary: #1f6f4a;
+  --color-primary-hover: #185c3d;
+  --color-primary-soft: #e7f0eb;
+
+  --color-page: #f7f8f7;
+  --color-surface: #ffffff;
+  --color-line: #e3e6e4; /* card / table borders */
+  --color-line-strong: #8a938e; /* input borders, 3:1 on white */
+  --color-ink: #1a1d1b; /* primary text */
+  --color-muted: #5f6762; /* secondary text */
+  --color-neutral-soft: #eef0ef;
+
+  --color-success: #2e7d32;
+  --color-success-soft: #edf6ee;
+  --color-warning: #9a5b00; /* darkened from #B26A00 to pass 4.5:1 */
+  --color-warning-soft: #fbf1e3;
+  --color-danger: #c62828;
+  --color-danger-soft: #fbe9e9;
+
+  /* Behaviour colours (charts, labels) */
+  --color-standing: #2e6fb0;
+  --color-lying: #7a5aa6;
+  --color-foraging: #2e7d32;
+  --color-drinking: #0b7676; /* darkened from #0F8A8A */
+  --color-rumination: #9a5b00; /* darkened from #B26A00 */
+}
