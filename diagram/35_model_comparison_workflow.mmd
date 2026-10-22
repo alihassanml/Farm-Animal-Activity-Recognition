@@ -1,0 +1,24 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    DS[("Prepared CBVD-5 dataset<br/>same train, val and test split")] --> CFG["Fixed training settings<br/>same for every model"]
+
+    subgraph TRAIN["Train each model"]
+        direction TB
+        M1["YOLOv8s"]
+        M2["YOLOv9s"]
+        M3["YOLOv10s"]
+        M4["YOLO11s<br/>baseline"]
+        M5["YOLO12s"]
+    end
+
+    CFG --> TRAIN
+    TRAIN --> EVAL["Evaluate every best.pt<br/>on the same test set"]
+    EVAL --> TAB["Results table<br/>precision, recall, F1, mAP50,<br/>mAP50-95, speed, size"]
+    TAB --> CMP["Compare overall and<br/>per-class results"]
+    CMP --> SEL["Select the best model<br/>accuracy and speed trade-off"]
+    SEL --> DEP["Integrate selected model<br/>into the web system"]
+
+    classDef store fill:#FFF8E6,stroke:#9A5B00,color:#1A1D1B
+    classDef final fill:#1F6F4A,stroke:#1F6F4A,color:#FFFFFF
+    class DS store
+    class DEP final

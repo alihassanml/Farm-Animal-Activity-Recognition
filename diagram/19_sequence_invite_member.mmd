@@ -1,0 +1,25 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+sequenceDiagram
+    autonumber
+    actor AD as Admin
+    participant UI as React App
+    participant API as FastAPI
+    participant DB as SQLite
+    actor IN as Invited Person
+
+    AD->>UI: Enter email and role
+    UI->>API: POST /workspaces/{id}/invites
+    API->>API: Check admin role
+    API->>DB: Revoke old pending invite, create new token (7 days)
+    API-->>UI: Invite with token
+    UI-->>AD: Show invite link
+    AD->>IN: Share link /invite/{token}
+    IN->>UI: Open link, sign up or log in
+    UI->>API: GET /invites/{token}
+    API-->>UI: Workspace name, role, status
+    IN->>UI: Click Join
+    UI->>API: POST /invites/{token}/accept
+    API->>API: Check pending, not expired, email matches
+    API->>DB: Add member, mark invite accepted
+    API-->>UI: Workspace with role
+    UI-->>IN: Open workspace dashboard

@@ -1,0 +1,14 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    A[("CBVD-5 dataset<br/>Kaggle")] --> B["Read AVA annotation CSVs<br/>video, time, box, action id"]
+    B --> C["Map action ids<br/>to 5 behaviour classes"]
+    C --> D["Merge multi-label boxes<br/>using the priority rule"]
+    D --> E["Find the image of<br/>each annotated keyframe"]
+    E --> F["Remove broken and tiny boxes"]
+    F --> G["Convert boxes to YOLO format<br/>class, x center, y center, width, height"]
+    G --> H["Split by video<br/>70% train, 15% val, 15% test"]
+    H --> I["Write images, labels<br/>and data.yaml"]
+    I --> J[("YOLO dataset<br/>3,199 images, 25,320 boxes")]
+
+    classDef store fill:#FFF8E6,stroke:#9A5B00,color:#1A1D1B
+    class A,J store

@@ -1,0 +1,42 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart LR
+    subgraph FE["Frontend - React + TypeScript"]
+        direction LR
+        F1["Pages"]
+        F2["Auth and Workspace<br/>Context"]
+        F3["API Client"]
+    end
+
+    subgraph BE["Backend - FastAPI"]
+        direction LR
+        B1["Routers"]
+        B2["Auth Module"]
+        B3["Pydantic Schemas"]
+        B4["SQLAlchemy ORM"]
+    end
+
+    subgraph SV["Background Services"]
+        direction LR
+        V1["Detector"]
+        V2["Video Worker"]
+        V3["Camera Manager"]
+        V4["Alert Engine"]
+    end
+
+    subgraph LIB["Libraries"]
+        direction LR
+        L1["Ultralytics YOLO<br/>+ PyTorch"]
+        L2["OpenCV"]
+    end
+
+    DB[("SQLite<br/>farm.db")]
+    FS["Uploads Folder"]
+
+    FE -- "REST + cookie" --> BE
+    BE --> SV
+    SV --> LIB
+    BE --> DB
+    BE --> FS
+
+    classDef store fill:#FFF8E6,stroke:#9A5B00,color:#1A1D1B
+    class DB,FS store

@@ -1,0 +1,28 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    S(("Every 60 s<br/>per running camera")) --> A["Load enabled alert rules<br/>of the workspace"]
+    A --> B{"Camera watched for<br/>the whole time window?"}
+    B -- "No" --> Z(("Skip rule"))
+    B -- "Yes" --> C{"Open alert or recent alert<br/>for same rule and camera?"}
+    C -- "Yes" --> Z
+    C -- "No" --> D{"At least 30 detections<br/>in the window?"}
+    D -- "No" --> Z
+    D -- "Yes" --> E{"Rule type"}
+    E -- "Lying ratio" --> F{"Lying share of detections<br/>at or above threshold?"}
+    E -- "No foraging" --> G{"Fewer than 3 confident<br/>foraging detections?"}
+    E -- "No drinking" --> H{"Fewer than 3 confident<br/>drinking detections?"}
+    F -- "Yes" --> W["Create alert<br/>severity: warning"]
+    G -- "Yes" --> W
+    H -- "Yes" --> R["Create alert<br/>severity: danger"]
+    F -- "No" --> Z
+    G -- "No" --> Z
+    H -- "No" --> Z
+    W --> DB[("Save in alerts table")]
+    R --> DB
+
+    classDef bad fill:#FDECEC,stroke:#C62828,color:#1A1D1B
+    classDef warn fill:#FFF3DC,stroke:#9A5B00,color:#1A1D1B
+    classDef store fill:#FFF8E6,stroke:#9A5B00,color:#1A1D1B
+    class R bad
+    class W warn
+    class DB store

@@ -1,0 +1,16 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    A["Test results of all models"] --> B["Rank by mAP50-95 and mAP50"]
+    B --> C{"Top models close<br/>in accuracy?"}
+    C -- "Yes" --> D["Prefer the faster<br/>and smaller model"]
+    C -- "No" --> E["Take the most<br/>accurate model"]
+    D --> F{"Weak classes improved?<br/>lying, drinking, rumination"}
+    E --> F
+    F -- "No" --> G["Consider next model"]
+    G --> F
+    F -- "Yes" --> H{"Fast enough for real time?<br/>under 1 second per frame"}
+    H -- "No" --> G
+    H -- "Yes" --> I["Final model selected"]
+
+    classDef final fill:#1F6F4A,stroke:#1F6F4A,color:#FFFFFF
+    class I final

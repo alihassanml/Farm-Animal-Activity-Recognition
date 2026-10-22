@@ -1,0 +1,14 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    A["Cow box with one or more labels<br/>e.g. lying + rumination"] --> B{"Has drinking?"}
+    B -- "Yes" --> R1["Class: drinking"]
+    B -- "No" --> C{"Has foraging?"}
+    C -- "Yes" --> R2["Class: foraging"]
+    C -- "No" --> D{"Has rumination?"}
+    D -- "Yes" --> R3["Class: rumination"]
+    D -- "No" --> E{"Has lying?"}
+    E -- "Yes" --> R4["Class: lying"]
+    E -- "No" --> R5["Class: standing"]
+
+    classDef res fill:#1F6F4A,stroke:#1F6F4A,color:#FFFFFF
+    class R1,R2,R3,R4,R5 res

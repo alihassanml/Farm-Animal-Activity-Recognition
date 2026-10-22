@@ -1,0 +1,28 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    GT["Ground truth boxes<br/>from the test set"] --> IOU
+    PR["Predicted boxes<br/>from the model"] --> IOU["Match boxes by IoU<br/>overlap of at least 0.5"]
+    IOU --> CNT["Count TP, FP and FN"]
+    CNT --> P["Precision"]
+    CNT --> R["Recall"]
+    P --> F1["F1 score"]
+    R --> F1
+    P --> AP["Average precision<br/>per class"]
+    R --> AP
+    AP --> M50["mAP50"]
+    AP --> M95["mAP50-95<br/>IoU 0.50 to 0.95"]
+
+    subgraph EFF["Efficiency"]
+        direction LR
+        E1["Speed ms per image"]
+        E2["Parameters"]
+        E3["Model size MB"]
+    end
+
+    F1 --> TAB["Comparison table"]
+    M50 --> TAB
+    M95 --> TAB
+    EFF --> TAB
+
+    classDef final fill:#1F6F4A,stroke:#1F6F4A,color:#FFFFFF
+    class TAB final

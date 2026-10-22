@@ -1,0 +1,20 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+sequenceDiagram
+    autonumber
+    participant B as Browser (React)
+    participant A as FastAPI
+    participant D as SQLite
+
+    B->>A: POST /api/auth/login (email, password)
+    A->>D: Find user by email
+    D-->>A: User and password hash
+    A->>A: Verify password with bcrypt
+    alt Credentials valid
+        A->>A: Create JWT (expires in 24 hours)
+        A-->>B: 200 user data + httpOnly cookie
+        B->>A: Later requests (cookie sent automatically)
+        A->>A: Decode JWT and load user
+        A-->>B: Protected data
+    else Credentials invalid
+        A-->>B: 401 error message
+    end

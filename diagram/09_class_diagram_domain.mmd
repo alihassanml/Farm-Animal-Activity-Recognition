@@ -1,0 +1,85 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+classDiagram
+    class User {
+        +int id
+        +string name
+        +string email
+        -string password_hash
+        +datetime created_at
+    }
+    class Workspace {
+        +int id
+        +string name
+        +int created_by
+    }
+    class WorkspaceMember {
+        +int id
+        +string role
+        +datetime joined_at
+    }
+    class Invite {
+        +int id
+        +string email
+        +string role
+        +string token
+        +string status
+        +datetime expires_at
+    }
+    class Camera {
+        +int id
+        +string name
+        +string source
+        +string location
+        +bool is_active
+    }
+    class Animal {
+        +int id
+        +string tag_id
+        +string name
+        +string breed
+        +int age_months
+    }
+    class Analysis {
+        +int id
+        +string type
+        +string status
+        +float progress
+        +int detection_count
+    }
+    class Detection {
+        +int id
+        +string posture
+        +string state
+        +string behaviour
+        +float confidence
+        +float x1
+        +float y1
+        +float x2
+        +float y2
+    }
+    class AlertRule {
+        +int id
+        +string rule_type
+        +float threshold
+        +int window_minutes
+        +bool is_enabled
+    }
+    class Alert {
+        +int id
+        +string message
+        +string severity
+        +string status
+        +datetime acknowledged_at
+    }
+
+    Workspace "1" --> "*" WorkspaceMember : has
+    User "1" --> "*" WorkspaceMember : joins
+    Workspace "1" --> "*" Invite : issues
+    Workspace "1" --> "*" Camera : owns
+    Workspace "1" --> "*" Animal : registers
+    Workspace "1" --> "*" Analysis : contains
+    Workspace "1" --> "*" AlertRule : defines
+    Camera "0..1" --> "*" Analysis : produces
+    Analysis "1" --> "*" Detection : records
+    Camera "1" --> "*" Alert : raises
+    AlertRule "1" --> "*" Alert : triggers

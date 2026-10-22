@@ -1,0 +1,12 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+stateDiagram-v2
+    direction LR
+    [*] --> Stopped
+    Stopped --> Connecting : Start pressed
+    Connecting --> Running : stream opened
+    Connecting --> Error : cannot open source
+    Running --> Error : stream lost
+    Error --> Connecting : retry after 5 seconds
+    Connecting --> Stopped : Stop pressed
+    Running --> Stopped : Stop pressed
+    Error --> Stopped : Stop pressed

@@ -1,0 +1,62 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+classDiagram
+    direction TB
+    class Det {
+        +string posture
+        +string state
+        +float confidence
+        +float x1
+        +float y1
+        +float x2
+        +float y2
+        +behaviour() string
+    }
+    class Detector {
+        -string mode
+        -Lock lock
+        +detect(frame) List~Det~
+        -run(model, frame)
+    }
+    class CameraWorker {
+        +int camera_id
+        +string status
+        +run()
+        +stop()
+    }
+    class CameraManager {
+        -dict workers
+        +start(camera_id)
+        +stop(camera_id)
+        +status(camera_id)
+        +resume_active()
+        +shutdown()
+    }
+    class VideoWorker {
+        +submit(analysis_id)
+        +process_video(analysis_id)
+        +resume_unfinished()
+    }
+    class AlertEngine {
+        +evaluate_camera(camera) List~Alert~
+    }
+    class Storage {
+        +save_upload(file) Path
+        +add_detections(analysis, dets)
+    }
+    class Settings {
+        +string model_mode
+        +float conf_threshold
+        +float merge_iou
+        +int video_sample_fps
+        +int alert_check_seconds
+    }
+
+    CameraManager "1" o-- "*" CameraWorker : manages
+    CameraWorker ..> Detector : uses
+    CameraWorker ..> AlertEngine : checks every 60 s
+    CameraWorker ..> Storage : saves
+    VideoWorker ..> Detector : uses
+    VideoWorker ..> Storage : saves
+    Detector ..> Det : returns
+    Detector ..> Settings : reads
+    Storage ..> Det : stores

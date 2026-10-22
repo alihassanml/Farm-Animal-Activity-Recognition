@@ -1,0 +1,38 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TB
+    MEM(["Member"])
+    ADM(["Admin<br/>also has all<br/>Member use cases"])
+    CAM(["Camera"])
+
+    subgraph SYS["Farm Animal Activity Recognition System"]
+        direction TB
+        subgraph MU["Member use cases"]
+            direction LR
+            UC1(["Sign up / Log in"])
+            UC2(["Analyze image or video"])
+            UC3(["View dashboard"])
+            UC4(["View activity logs and export CSV"])
+            UC5(["View and acknowledge alerts"])
+            UC6(["Start / stop camera"])
+            UC7(["Manage profile"])
+        end
+        subgraph AU["Admin use cases"]
+            direction LR
+            UC8(["Manage cameras"])
+            UC9(["Manage animals"])
+            UC10(["Configure alert rules"])
+            UC11(["Invite and manage members"])
+            UC12(["Manage workspace"])
+        end
+        subgraph SU["Automated use case"]
+            direction LR
+            UC13(["Stream video frames"])
+        end
+    end
+
+    MEM --- MU
+    ADM --- AU
+    CAM --- SU
+
+    classDef actor fill:#FFFFFF,stroke:#1F6F4A,stroke-width:2px,color:#1A1D1B
+    class MEM,ADM,CAM actor

@@ -1,0 +1,28 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+gantt
+    title Project Timeline (17 Weeks)
+    dateFormat  YYYY-MM-DD
+    axisFormat  W%W
+    tickInterval 1week
+    todayMarker off
+
+    section Analysis and Design
+    Requirement analysis and SRS         :a1, 2026-01-05, 2w
+    System design and diagrams           :a2, after a1, 2w
+
+    section Model Development
+    Dataset preparation CBVD-5           :m1, after a2, 1w
+    Baseline training YOLO11s            :m2, after m1, 1w
+    Training and comparing YOLO models   :m3, after m2, 2w
+
+    section Integration
+    Backend API and database             :i1, after m3, 2w
+    Frontend dashboard                   :i2, after m3, 3w
+    Model integration and alerts         :i3, after i1, 2w
+
+    section Testing
+    Unit, API and browser testing        :t1, after i3, 2w
+    Bug fixing and evaluation            :t2, after t1, 1w
+
+    section Deployment
+    Deployment and documentation         :d1, after t2, 2w

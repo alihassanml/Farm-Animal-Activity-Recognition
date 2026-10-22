@@ -1,0 +1,35 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+sequenceDiagram
+    autonumber
+    actor A as Admin or Member
+    participant UI as React App
+    participant API as FastAPI
+    participant CW as Camera Worker
+    participant CAM as Camera
+    participant DT as YOLO Detector
+    participant AE as Alert Engine
+    participant DB as SQLite
+
+    A->>UI: Press Start on camera
+    UI->>API: POST /cameras/{id}/start
+    API->>CW: Start worker thread
+    API->>DB: Mark camera active
+    API-->>UI: Camera status
+    loop Every 1 second
+        CW->>CAM: Read frame
+        CAM-->>CW: Frame
+        CW->>DT: detect(frame)
+        DT-->>CW: Detections
+        CW->>DB: Save detections
+    end
+    loop Every 60 seconds
+        CW->>AE: evaluate_camera()
+        AE->>DB: Count detections in time window
+        AE->>DB: Create alert if rule is breached
+    end
+    A->>UI: Open Alerts page
+    UI->>API: GET /workspaces/{id}/alerts
+    API-->>UI: Open alerts
+    A->>UI: Acknowledge alert
+    UI->>API: POST /alerts/{id}/acknowledge
+    API->>DB: Status acknowledged

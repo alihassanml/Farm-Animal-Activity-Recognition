@@ -1,0 +1,10 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart LR
+    T["Testing"] --> B["Backend tests<br/>pytest, 14 tests"]
+    T --> F["Code checks<br/>TypeScript and ESLint"]
+    T --> E["Browser test<br/>Playwright, desktop and phone"]
+    T --> M["Model evaluation<br/>validation and test mAP"]
+    B --> B1["Auth, roles, workspace isolation,<br/>invites, analysis, alerts, CSV"]
+    F --> F1["Zero type and lint errors"]
+    E --> E1["Full user journey<br/>sign up to alerts"]
+    M --> M1["Compare YOLO versions"]

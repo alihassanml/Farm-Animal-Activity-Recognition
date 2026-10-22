@@ -1,0 +1,20 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    W["Pre-trained YOLO weights<br/>COCO dataset"] --> FT
+    TR[("Train set")] --> FT["Fine-tune on CBVD-5<br/>640 px, batch 16, up to 100 epochs<br/>cosine learning rate, mixed precision"]
+    AUG["Augmentation<br/>horizontal flip, mosaic,<br/>colour and scale changes"] --> FT
+    FT --> VAL["Validate after every epoch<br/>on the validation set"]
+    VAL --> Q{"Better than<br/>best so far?"}
+    Q -- "Yes" --> SAVE["Save as best.pt"]
+    Q -- "No" --> P{"No gain for<br/>25 epochs?"}
+    SAVE --> NEXT{"Max epochs<br/>reached?"}
+    P -- "No" --> NEXT
+    NEXT -- "No" --> FT
+    P -- "Yes" --> STOP["Stop training"]
+    NEXT -- "Yes" --> STOP
+    STOP --> TEST["Evaluate best.pt<br/>on the test set"]
+
+    classDef store fill:#FFF8E6,stroke:#9A5B00,color:#1A1D1B
+    classDef ai fill:#E8F0F9,stroke:#2E6FB0,color:#1A1D1B
+    class TR store
+    class FT,VAL ai

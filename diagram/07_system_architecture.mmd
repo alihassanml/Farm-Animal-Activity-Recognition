@@ -1,0 +1,41 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TB
+    subgraph PRES["Presentation Layer"]
+        direction TB
+        P1["React Web App<br/>Landing, Auth, Dashboard"]
+        P2["Analyze, Cameras,<br/>Activity, Alerts pages"]
+        P3["Animals, Settings,<br/>Profile pages"]
+    end
+
+    subgraph APP["Application Layer - FastAPI"]
+        direction TB
+        A1["REST API Routers"]
+        A2["Authentication<br/>JWT + bcrypt"]
+        A3["Access Control<br/>Workspace and Role"]
+    end
+
+    subgraph SRV["Service Layer"]
+        direction TB
+        S1["YOLO Detector"]
+        S2["Video Worker"]
+        S3["Camera Workers"]
+        S4["Alert Engine"]
+    end
+
+    subgraph DATA["Data Layer"]
+        direction TB
+        D1[("SQLite Database")]
+        D2["Uploads Folder"]
+        D3["Model Weights<br/>best.pt"]
+    end
+
+    subgraph EXT["External Sources"]
+        direction TB
+        E1["USB Webcam"]
+        E2["RTSP CCTV Camera"]
+    end
+
+    PRES -- "HTTPS / JSON" --> APP
+    APP --> SRV
+    SRV --> DATA
+    EXT -- "video frames" --> SRV

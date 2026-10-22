@@ -1,0 +1,10 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+stateDiagram-v2
+    direction LR
+    [*] --> Pending : admin creates invite
+    Pending --> Accepted : invited user joins
+    Pending --> Revoked : admin revokes or sends a new invite
+    Pending --> Expired : 7 days pass
+    Accepted --> [*]
+    Revoked --> [*]
+    Expired --> [*]

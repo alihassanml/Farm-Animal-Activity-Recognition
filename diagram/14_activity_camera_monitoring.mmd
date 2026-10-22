@@ -1,0 +1,26 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    S(("Start")) --> A["Admin adds camera<br/>webcam index or RTSP URL"]
+    A --> B["User presses Start"]
+    B --> C["Start camera worker thread"]
+    C --> D{"Stream opened?"}
+    D -- "No" --> E["Status: error<br/>wait 5 seconds"]
+    E --> D
+    D -- "Yes" --> F["Read frame"]
+    F --> G{"Frame read OK?"}
+    G -- "No" --> E
+    G -- "Yes" --> H{"1 second since<br/>last sample?"}
+    H -- "Yes" --> I["Run YOLO and save detections"]
+    H -- "No" --> J
+    I --> J{"60 seconds since<br/>last alert check?"}
+    J -- "Yes" --> K["Evaluate alert rules"]
+    J -- "No" --> L
+    K --> L{"Stop requested?"}
+    L -- "No" --> F
+    L -- "Yes" --> M["Release camera<br/>and close analysis"]
+    M --> X(("End"))
+
+    classDef bad fill:#FDECEC,stroke:#C62828,color:#1A1D1B
+    classDef ai fill:#E8F0F9,stroke:#2E6FB0,color:#1A1D1B
+    class E bad
+    class I ai

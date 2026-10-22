@@ -1,0 +1,15 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    A["1. Problem Analysis<br/>and Requirements"] --> B["2. Dataset Collection<br/>and Preparation"]
+    B --> C["3. Model Training<br/>YOLO baseline"]
+    C --> D["4. Model Comparison<br/>YOLOv8 to YOLO12"]
+    D --> E["5. Backend Development<br/>FastAPI + SQLite"]
+    E --> F["6. Frontend Development<br/>React dashboard"]
+    F --> G["7. System Integration"]
+    G --> H["8. Testing and Evaluation"]
+    H --> I{"Targets<br/>met?"}
+    I -- "Yes" --> J["9. Deployment<br/>and Documentation"]
+    I -- "No: next sprint" --> B
+
+    classDef done fill:#1F6F4A,stroke:#1F6F4A,color:#FFFFFF
+    class J done

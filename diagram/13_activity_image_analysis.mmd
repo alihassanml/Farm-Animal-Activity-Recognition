@@ -1,0 +1,24 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    S(("Start")) --> A["User selects an image<br/>and clicks Analyze"]
+    A --> B{"Logged in and<br/>workspace member?"}
+    B -- "No" --> E1["Return 401 / 404"]
+    B -- "Yes" --> C{"Valid image type<br/>and size up to 200 MB?"}
+    C -- "No" --> E2["Return 400 / 413"]
+    C -- "Yes" --> D{"Model loaded?"}
+    D -- "No" --> E3["Return 503"]
+    D -- "Yes" --> F["Save image to uploads folder"]
+    F --> G["Run YOLO detection"]
+    G --> H["Keep detections with<br/>confidence 0.35 or higher"]
+    H --> I["Draw boxes and labels"]
+    I --> J["Save analysis and<br/>detections in database"]
+    J --> K["Show annotated image,<br/>counts and table"]
+    K --> X(("End"))
+    E1 --> X
+    E2 --> X
+    E3 --> X
+
+    classDef bad fill:#FDECEC,stroke:#C62828,color:#1A1D1B
+    classDef ai fill:#E8F0F9,stroke:#2E6FB0,color:#1A1D1B
+    class E1,E2,E3 bad
+    class G ai

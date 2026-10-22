@@ -1,0 +1,21 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant UI as React App
+    participant API as FastAPI
+    participant ST as Storage
+    participant DT as YOLO Detector
+    participant DB as SQLite
+
+    U->>UI: Select image and click Analyze
+    UI->>API: POST /workspaces/{id}/analyze/image
+    API->>API: Check login, membership, model loaded
+    API->>ST: Save upload (type and size check)
+    ST-->>API: File path
+    API->>DT: detect(frame)
+    DT-->>API: Boxes, behaviours, confidence
+    API->>API: Draw boxes with OpenCV
+    API->>DB: Save analysis and detections
+    API-->>UI: 201 result with counts and detections
+    UI-->>U: Annotated image and table

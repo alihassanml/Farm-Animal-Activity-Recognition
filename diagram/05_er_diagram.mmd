@@ -1,0 +1,64 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+erDiagram
+    USER ||--o{ WORKSPACE_MEMBER : "joins as"
+    WORKSPACE ||--o{ WORKSPACE_MEMBER : "has"
+    WORKSPACE ||--o{ INVITE : "issues"
+    WORKSPACE ||--o{ CAMERA : "owns"
+    WORKSPACE ||--o{ ANIMAL : "registers"
+    WORKSPACE ||--o{ ANALYSIS : "contains"
+    WORKSPACE ||--o{ ALERT_RULE : "defines"
+    USER |o--o{ ANALYSIS : "runs"
+    CAMERA |o--o{ ANALYSIS : "produces"
+    ANALYSIS ||--o{ DETECTION : "records"
+    CAMERA ||--o{ ALERT : "raises"
+    ALERT_RULE |o--o{ ALERT : "triggers"
+    USER |o--o{ ALERT : "acknowledges"
+
+    USER {
+        int id PK
+        string name
+        string email UK
+    }
+    WORKSPACE {
+        int id PK
+        string name
+    }
+    WORKSPACE_MEMBER {
+        int id PK
+        string role
+    }
+    INVITE {
+        int id PK
+        string email
+        string status
+    }
+    CAMERA {
+        int id PK
+        string name
+        string source
+    }
+    ANIMAL {
+        int id PK
+        string tag_id
+        string breed
+    }
+    ANALYSIS {
+        int id PK
+        string type
+        string status
+    }
+    DETECTION {
+        int id PK
+        string behaviour
+        float confidence
+    }
+    ALERT_RULE {
+        int id PK
+        string rule_type
+        int window_minutes
+    }
+    ALERT {
+        int id PK
+        string severity
+        string status
+    }

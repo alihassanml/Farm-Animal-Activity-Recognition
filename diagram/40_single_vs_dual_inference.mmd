@@ -1,0 +1,15 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    A["Input frame"] --> B{"MODEL_MODE"}
+    B -- "single" --> C["5-class model<br/>standing, lying, foraging,<br/>drinking, rumination"]
+    B -- "dual" --> D["Posture model<br/>standing, lying"]
+    B -- "dual" --> E["State model<br/>foraging, drinking, rumination"]
+    D --> F["Merge boxes<br/>IoU of at least 0.5"]
+    E --> F
+    C --> G["One label per cow<br/>state wins over posture"]
+    F --> H["Posture + state per cow"]
+    G --> I["Save posture, state and behaviour"]
+    H --> I
+
+    classDef ai fill:#E8F0F9,stroke:#2E6FB0,color:#1A1D1B
+    class C,D,E ai

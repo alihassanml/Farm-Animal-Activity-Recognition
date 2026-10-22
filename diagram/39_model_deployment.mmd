@@ -1,0 +1,15 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    A["Selected model<br/>best.pt"] --> B["Copy to<br/>backend/models/best.pt"]
+    B --> C["Set MODEL_MODE and MODEL_PATH<br/>in backend/.env"]
+    C --> D["Start the backend"]
+    D --> E{"Model file found and<br/>class names valid?"}
+    E -- "No" --> F["API stays up<br/>health shows the error"]
+    E -- "Yes" --> G["Load model once<br/>and run a warm-up"]
+    G --> H["GET /api/health<br/>model_loaded = true"]
+    H --> I["Analyze and Cameras pages<br/>use the model"]
+
+    classDef bad fill:#FDECEC,stroke:#C62828,color:#1A1D1B
+    classDef final fill:#1F6F4A,stroke:#1F6F4A,color:#FFFFFF
+    class F bad
+    class I final

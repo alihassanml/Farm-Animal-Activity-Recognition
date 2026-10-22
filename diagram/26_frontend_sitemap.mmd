@@ -1,0 +1,30 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    L["Landing /"]
+    LI["Log in /login"]
+    SU["Sign up /signup"]
+    INV["Accept invite<br/>/invite/:token"]
+    HOME["App home /app"]
+    ONB["Onboarding<br/>create workspace"]
+    WS["Workspace /w/:id"]
+
+    L --> LI
+    L --> SU
+    LI --> HOME
+    SU --> HOME
+    INV --> HOME
+    HOME -- "no workspace" --> ONB
+    HOME -- "has workspace" --> WS
+    ONB --> WS
+
+    WS --> P1["Dashboard"]
+    WS --> P2["Analyze"]
+    WS --> P3["Cameras"]
+    WS --> P4["Activity logs"]
+    WS --> P5["Alerts"]
+    WS --> P6["Animals"]
+    WS --> P7["Workspace settings"]
+    WS --> P8["Profile"]
+
+    classDef pub fill:#FFFFFF,stroke:#5F6762,color:#1A1D1B
+    class L,LI,SU,INV pub

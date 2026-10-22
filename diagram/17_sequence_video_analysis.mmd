@@ -1,0 +1,27 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant UI as React App
+    participant API as FastAPI
+    participant VW as Video Worker
+    participant DT as YOLO Detector
+    participant DB as SQLite
+
+    U->>UI: Upload video
+    UI->>API: POST /workspaces/{id}/analyze/video
+    API->>DB: Create analysis (status queued)
+    API->>VW: submit(analysis_id)
+    API-->>UI: 201 queued
+    VW->>DB: Status processing
+    loop Every sampled frame (1 per second)
+        VW->>DT: detect(frame)
+        DT-->>VW: Detections
+        VW->>DB: Save detections and progress
+    end
+    VW->>DB: Status done
+    loop Until finished
+        UI->>API: GET /analyses/{id}
+        API-->>UI: Status and progress
+    end
+    UI-->>U: Results and counts

@@ -1,0 +1,12 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart LR
+    USER["Farm Team<br/>Admin / Member"]
+    CAM["Camera<br/>USB or RTSP"]
+    SYS(("Farm Animal<br/>Activity Recognition<br/>System"))
+
+    USER -- "login details, images, videos,<br/>camera settings, alert rules" --> SYS
+    CAM -- "video frames" --> SYS
+    SYS -- "annotated images, activity logs,<br/>dashboard data, alerts" --> USER
+
+    classDef ext fill:#FFFFFF,stroke:#5F6762,stroke-width:1.5px,color:#1A1D1B
+    class USER,CAM ext

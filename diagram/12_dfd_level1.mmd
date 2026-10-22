@@ -1,0 +1,37 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TB
+    USER["Farm Team"]
+    CAM["Camera"]
+
+    P1("1.0<br/>Manage Users and<br/>Workspaces")
+    P2("2.0<br/>Analyze Image<br/>and Video")
+    P3("3.0<br/>Monitor<br/>Cameras")
+    P4("4.0<br/>Evaluate<br/>Alerts")
+    P5("5.0<br/>Report<br/>Activity")
+
+    D1[("D1 Users, Workspaces,<br/>Invites")]
+    D5[("D5 Uploaded Files")]
+    D2[("D2 Cameras,<br/>Animals")]
+    D3[("D3 Analyses,<br/>Detections")]
+    D4[("D4 Alert Rules,<br/>Alerts")]
+
+    USER -- "sign up, login, invites" --> P1
+    P1 <--> D1
+    USER -- "image / video" --> P2
+    P2 --> D5
+    USER -- "camera setup" --> P3
+    P3 <--> D2
+    CAM -- "video frames" --> P3
+    P2 -- "detections" --> D3
+    P3 -- "detections" --> D3
+    D3 -- "recent detections" --> P4
+    USER -- "alert rules, acknowledge" --> P4
+    P4 <--> D4
+    D3 --> P5
+    D4 --> P5
+    P5 -- "dashboard, logs, CSV, alerts" --> USER
+
+    classDef ext fill:#FFFFFF,stroke:#5F6762,stroke-width:1.5px,color:#1A1D1B
+    classDef store fill:#FFF8E6,stroke:#9A5B00,color:#1A1D1B
+    class USER,CAM ext
+    class D1,D2,D3,D4,D5 store

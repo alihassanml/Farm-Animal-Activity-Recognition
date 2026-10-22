@@ -1,0 +1,12 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    ALL["537 labelled videos<br/>3,199 keyframes"] --> SPLIT{"Split by video<br/>stratified by class"}
+    SPLIT --> TR["Train 70%<br/>382 videos, 2,278 images<br/>Model learns from these"]
+    SPLIT --> VA["Validation 15%<br/>81 videos, 480 images<br/>Choose best epoch"]
+    SPLIT --> TE["Test 15%<br/>74 videos, 441 images<br/>Final score, used once"]
+    TR --> NOTE["No video appears in more than one split<br/>so there is no data leakage"]
+    VA --> NOTE
+    TE --> NOTE
+
+    classDef note fill:#FFF8E6,stroke:#9A5B00,color:#1A1D1B
+    class NOTE note

@@ -1,0 +1,122 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'}}}%%
+erDiagram
+    users ||--o{ workspace_members : "user_id"
+    workspaces ||--o{ workspace_members : "workspace_id"
+    workspaces ||--o{ invites : "workspace_id"
+    workspaces ||--o{ cameras : "workspace_id"
+    workspaces ||--o{ animals : "workspace_id"
+    workspaces ||--o{ analyses : "workspace_id"
+    workspaces ||--o{ alert_rules : "workspace_id"
+    users |o--o{ analyses : "user_id"
+    users |o--o{ invites : "invited_by"
+    users |o--o{ alerts : "acknowledged_by"
+    cameras |o--o{ analyses : "camera_id"
+    cameras |o--o{ detections : "camera_id"
+    cameras |o--o{ alerts : "camera_id"
+    analyses ||--o{ detections : "analysis_id"
+    alert_rules |o--o{ alerts : "rule_id"
+
+    users {
+        int id PK
+        string name
+        string email UK
+        string password_hash
+        datetime created_at
+    }
+    workspaces {
+        int id PK
+        string name
+        int created_by FK
+        datetime created_at
+    }
+    workspace_members {
+        int id PK
+        int workspace_id FK
+        int user_id FK
+        string role
+        datetime joined_at
+    }
+    invites {
+        int id PK
+        int workspace_id FK
+        string email
+        string role
+        string token UK
+        string status
+        int invited_by FK
+        datetime expires_at
+        datetime created_at
+    }
+    cameras {
+        int id PK
+        int workspace_id FK
+        string name
+        string source
+        string location
+        bool is_active
+        datetime created_at
+    }
+    animals {
+        int id PK
+        int workspace_id FK
+        string tag_id
+        string name
+        string breed
+        int age_months
+        text notes
+        datetime created_at
+    }
+    analyses {
+        int id PK
+        int workspace_id FK
+        int user_id FK
+        int camera_id FK
+        string type
+        string original_name
+        string file_path
+        string result_path
+        string status
+        float progress
+        text error
+        int detection_count
+        datetime created_at
+        datetime finished_at
+    }
+    detections {
+        int id PK
+        int workspace_id FK
+        int analysis_id FK
+        int camera_id FK
+        int frame_index
+        datetime frame_time
+        string posture
+        string state
+        string behaviour
+        float confidence
+        float x1
+        float y1
+        float x2
+        float y2
+        datetime created_at
+    }
+    alert_rules {
+        int id PK
+        int workspace_id FK
+        string rule_type
+        float threshold
+        int window_minutes
+        bool is_enabled
+        datetime created_at
+    }
+    alerts {
+        int id PK
+        int workspace_id FK
+        int camera_id FK
+        int rule_id FK
+        string message
+        string severity
+        string status
+        int acknowledged_by FK
+        datetime acknowledged_at
+        datetime created_at
+    }

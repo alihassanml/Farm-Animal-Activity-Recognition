@@ -1,0 +1,22 @@
+%%{init: {'theme':'base','themeVariables':{'background':'#ffffff','primaryColor':'#EAF4EE','primaryBorderColor':'#1F6F4A','primaryTextColor':'#1A1D1B','lineColor':'#4A5550','secondaryColor':'#F5F7F6','tertiaryColor':'#FFFFFF','noteBkgColor':'#FFF8E6','noteTextColor':'#1A1D1B','noteBorderColor':'#9A5B00','fontFamily':'Arial','fontSize':'15px'},'flowchart':{'curve':'linear','htmlLabels':true,'padding':12}}}%%
+flowchart TD
+    subgraph SAME["Kept the same for every model"]
+        direction TB
+        S1["Dataset CBVD-5<br/>split by video 70 / 15 / 15"]
+        S2["Image size 640<br/>batch size 16"]
+        S3["100 epochs, early stopping 25<br/>same augmentation"]
+        S4["Random seed 42<br/>GPU Tesla T4"]
+        S5["Same test set<br/>and metrics"]
+    end
+
+    subgraph DIFF["Changed"]
+        direction TB
+        V1["Model version only<br/>YOLOv8s, v9s, v10s, 11s, 12s"]
+    end
+
+    SAME --> EXP["Controlled experiment"]
+    DIFF --> EXP
+    EXP --> RES["Fair and comparable results"]
+
+    classDef final fill:#1F6F4A,stroke:#1F6F4A,color:#FFFFFF
+    class RES final
