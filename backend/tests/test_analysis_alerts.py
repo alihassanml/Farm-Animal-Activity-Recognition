@@ -136,6 +136,8 @@ def test_detections_list_export_and_dashboard(make_user):
     assert s["peak_cows_today"] == 1  # each seeded frame has one detection
     assert len(s["behaviour_over_time"]) == 24
     assert s["cameras_total"] == 1
+    assert s["members_total"] == 1 and s["analyses_total"] == 1
+    assert s["last_seen"]["foraging"] is not None and s["last_seen"]["drinking"] is None
 
 
 def test_merge_posture_state():

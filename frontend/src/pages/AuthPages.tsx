@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { errorMessage } from '../api/client'
@@ -7,18 +8,44 @@ import { Input } from '../components/ui/Field'
 import { Notice } from '../components/ui/States'
 import { useAuth } from '../context/auth'
 
+const POINTS = [
+  'Recognises standing, lying, eating, drinking and rumination',
+  'Works with photos, videos and live barn cameras',
+  'Alerts your team when herd behaviour looks unusual',
+]
+
 function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: ReactNode; children: ReactNode; footer: ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-12">
-      <Link to="/" className="mb-8" aria-label="Farm Activity home">
-        <Logo />
-      </Link>
-      <div className="w-full max-w-sm rounded-lg border border-line bg-surface p-6 sm:p-8">
-        <h1 className="text-[22px]">{title}</h1>
-        {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
-        <div className="mt-6">{children}</div>
+    <div className="grid min-h-dvh bg-surface lg:grid-cols-[1fr_1fr]">
+      <div className="flex flex-col px-6 py-8 sm:px-12">
+        <Link to="/" className="self-start" aria-label="Farm Activity home">
+          <Logo />
+        </Link>
+        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12">
+          <h1 className="text-[28px] tracking-[-0.02em]">{title}</h1>
+          {subtitle && <p className="mt-2 text-muted">{subtitle}</p>}
+          <div className="mt-8">{children}</div>
+          <p className="mt-8 text-sm text-muted">{footer}</p>
+        </div>
       </div>
-      <p className="mt-6 text-sm text-muted">{footer}</p>
+
+      <aside className="hidden flex-col justify-between bg-forest p-12 text-white lg:flex">
+        <p className="text-sm font-semibold text-forest-accent">Farm Activity</p>
+        <div className="max-w-md">
+          <h2 className="text-[32px] leading-tight tracking-[-0.02em]">Every cow, every hour, without walking the barn.</h2>
+          <ul className="mt-8 flex flex-col gap-4">
+            {POINTS.map((p) => (
+              <li key={p} className="flex items-start gap-3 text-forest-muted">
+                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-forest-accent text-forest">
+                  <Check className="size-3" strokeWidth={3} aria-hidden />
+                </span>
+                {p}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="text-sm text-forest-muted">YOLO11 model trained on the CBVD-5 cattle behaviour dataset.</p>
+      </aside>
     </div>
   )
 }
@@ -50,8 +77,8 @@ export function Login() {
 
   return (
     <AuthShell
-      title="Log in"
-      subtitle="Welcome back."
+      title="Welcome back"
+      subtitle="Log in to see how your herd is doing."
       footer={
         <>
           New here?{' '}
@@ -72,7 +99,7 @@ export function Login() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <Button type="submit" loading={busy} disabled={!email || !password} className="mt-2 w-full">
+        <Button type="submit" loading={busy} disabled={!email || !password} className="mt-2 h-11 w-full">
           Log in
         </Button>
       </form>
@@ -109,7 +136,7 @@ export function Signup() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Start monitoring your herd."
+      subtitle="Set up a workspace for your farm in a minute."
       footer={
         <>
           Already have an account?{' '}
@@ -132,7 +159,7 @@ export function Signup() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <Button type="submit" loading={busy} disabled={!name.trim() || !email || !password} className="mt-2 w-full">
+        <Button type="submit" loading={busy} disabled={!name.trim() || !email || !password} className="mt-2 h-11 w-full">
           Sign up
         </Button>
       </form>

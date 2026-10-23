@@ -152,7 +152,10 @@ export interface DashboardSummary {
   cameras_online: number
   cameras_total: number
   analyses_today: number
+  analyses_total: number
+  members_total: number
   behaviour_counts: Record<Behaviour, number>
+  last_seen: Record<Behaviour, string | null>
   behaviour_over_time: { time: string; counts: Record<Behaviour, number> }[]
   recent_alerts: Alert[]
 }

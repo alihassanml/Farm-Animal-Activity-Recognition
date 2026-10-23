@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import Access, workspace_member
 from ..database import get_db
-from ..models import BEHAVIOURS, Alert, Analysis, Camera, Detection, utcnow
+from ..models import BEHAVIOURS, Alert, Analysis, Camera, Detection, WorkspaceMember, utcnow
 from ..schemas import DashboardSummary, TimeBucket
 from ..services.camera_worker import camera_manager
 from .alerts import alert_rows
@@ -63,6 +63,14 @@ def summary(
         if key in buckets and behaviour in buckets[key]:
             buckets[key][behaviour] = n
 
+    last_seen = dict(
+        db.execute(
+            select(Detection.behaviour, func.max(Detection.frame_time))
+            .where(Detection.workspace_id == ws)
+            .group_by(Detection.behaviour)
+        ).all()
+    )
+
     camera_ids = list(db.scalars(select(Camera.id).where(Camera.workspace_id == ws)))
     return DashboardSummary(
         peak_cows_today=peak,
@@ -74,7 +82,12 @@ def summary(
         analyses_today=db.scalar(
             select(func.count(Analysis.id)).where(Analysis.workspace_id == ws, Analysis.created_at >= today)
         ) or 0,
+        analyses_total=db.scalar(select(func.count(Analysis.id)).where(Analysis.workspace_id == ws)) or 0,
+        members_total=db.scalar(
+            select(func.count(WorkspaceMember.id)).where(WorkspaceMember.workspace_id == ws)
+        ) or 0,
         behaviour_counts={b: counts.get(b, 0) for b in BEHAVIOURS},
+        last_seen={b: last_seen.get(b) for b in BEHAVIOURS},
         behaviour_over_time=[TimeBucket(time=t, counts=c) for t, c in buckets.items()],
         recent_alerts=alert_rows(db, ws, None, 5),
     )

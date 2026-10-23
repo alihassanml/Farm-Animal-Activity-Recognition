@@ -8,6 +8,10 @@
   --color-primary-soft: #e7f0eb;
 
   --color-page: #f7f8f7;
+  --color-tint: #f3f6f4; /* soft section background on the landing page */
+  --color-forest: #0f2e22; /* dark flat band (landing model section, auth panel) */
+  --color-forest-muted: #a9c2b6; /* body text on forest, 7.7:1 */
+  --color-forest-accent: #7fd1a5; /* highlights on forest, 8:1 */
   --color-surface: #ffffff;
   --color-line: #e3e6e4; /* card / table borders */
   --color-line-strong: #8a938e; /* input borders, 3:1 on white */
@@ -28,4 +32,8 @@
   --color-foraging: #2e7d32;
   --color-drinking: #0b7676; /* darkened from #0F8A8A */
   --color-rumination: #9a5b00; /* darkened from #B26A00 */
+
+  /* Very light elevation for cards (README: "very light shadow or none") */
+  --shadow-card: 0 1px 2px rgb(16 24 20 / 0.04), 0 1px 1px rgb(16 24 20 / 0.02);
+  --shadow-raised: 0 1px 2px rgb(16 24 20 / 0.05), 0 12px 32px -8px rgb(16 24 20 / 0.12);
 }

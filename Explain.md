@@ -576,6 +576,14 @@ On Git Bash / Linux / Mac use **`./run.sh`** instead.
 
 Then go to **http://localhost:5173**, sign up, create a workspace, and try **Analyze** with a barn photo.
 
+**For a presentation (demo data):** a brand-new workspace has an empty dashboard. To show a "real" farm, run this once in the `backend` folder:
+
+```
+python seed_demo.py
+```
+
+Then log in with **demo@farm.local** / **demo12345**. The demo farm *Green Valley Dairy* has 3 cameras, 8 animals, 2 open alerts and 24 hours of herd activity that follows a normal day (eating in the morning and evening, resting and chewing at night). Be honest if asked: this activity is **generated sample data** to show the dashboard. The real AI result is shown on the **Analyze** page when you upload a barn photo.
+
 | Address | What it is |
 |---|---|
 | http://localhost:5173 | The website |

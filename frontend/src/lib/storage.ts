@@ -17,3 +17,19 @@ export function setLastWorkspace(id: number) {
     // ignore
   }
 }
+
+export function getFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(`farm.${key}`) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function setFlag(key: string) {
+  try {
+    localStorage.setItem(`farm.${key}`, '1')
+  } catch {
+    // ignore
+  }
+}

@@ -113,7 +113,7 @@ In single mode the 5-class model picks one label per cow (state wins), so a lyin
 | Landing `/` | Short hero, 3 feature blocks, how-it-works steps, sign up / log in buttons |
 | Sign up / Log in | Simple centred form, clear error messages |
 | Accept invite `/invite/:token` | Workspace name, role, join button |
-| Dashboard | Stat cards (cows detected today, active alerts, cameras online, analyses run), behaviour distribution bar chart, behaviour over time line chart, recent alerts table. "Cows detected today" = the most cows seen together in one frame today (without tracking, cows can't be counted uniquely). |
+| Dashboard | Greeting and quick actions; setup checklist for new workspaces (first analysis, first camera, invite team); stat cards (cows detected today, active alerts, cameras online, analyses run); today's herd activity (share bar + table per behaviour); herd signals (lying and eating share, when drinking / eating / rumination was last seen); stacked activity chart for the last 24 completed hours; recent alerts and camera status lists. "Cows detected today" = the most cows seen together in one frame today (without tracking, cows can't be counted uniquely). |
 | Analyze | Upload image/video, result preview with boxes, detections table |
 | Cameras | List, add/edit (admin), status, start/stop monitoring |
 | Activity logs | Filterable table (date, camera, behaviour), CSV export |
@@ -273,6 +273,8 @@ run.bat        # Windows: double-click, or run from cmd. Opens a Backend and a F
 ```
 
 Then open http://localhost:5173. Ports 8000 and 5173 must be free.
+
+**Demo data (for presentations):** `cd backend && python seed_demo.py` creates the account **demo@farm.local / demo12345** with a "Green Valley Dairy" workspace: 3 cameras, 8 animals, 2 open alerts and 24 hours of realistic herd activity (feeding in the morning and evening, resting and rumination at night). Run it again at any time to refresh the last 24 hours.
 
 Manual steps, if you prefer:
 

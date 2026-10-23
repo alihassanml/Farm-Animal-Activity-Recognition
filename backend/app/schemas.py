@@ -309,6 +309,9 @@ class DashboardSummary(BaseModel):
     cameras_online: int
     cameras_total: int
     analyses_today: int
+    analyses_total: int
+    members_total: int
     behaviour_counts: dict[str, int]
+    last_seen: dict[str, UTCDateTime | None]  # latest detection time per behaviour (any day)
     behaviour_over_time: list[TimeBucket]
     recent_alerts: list[AlertOut]
