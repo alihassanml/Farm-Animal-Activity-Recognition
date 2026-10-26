@@ -29,6 +29,7 @@ def _filtered(
     camera: int | None,
     behaviour: str | None,
     analysis: int | None,
+    cow: int | None,
 ):
     q = select(Detection).where(Detection.workspace_id == workspace_id)
     if from_ is not None:
@@ -41,6 +42,8 @@ def _filtered(
         q = q.where(Detection.behaviour == behaviour)
     if analysis is not None:
         q = q.where(Detection.analysis_id == analysis)
+    if cow is not None:  # cow IDs are per analysis, so this is used together with `analysis`
+        q = q.where(Detection.track_id == cow)
     return q
 
 
@@ -52,8 +55,9 @@ class Filters:
         camera: int | None = None,
         behaviour: Behaviour | None = None,
         analysis: int | None = None,
+        cow: int | None = None,
     ):
-        self.args = (from_, to, camera, behaviour, analysis)
+        self.args = (from_, to, camera, behaviour, analysis, cow)
 
 
 @router.get("/workspaces/{workspace_id}/detections", response_model=DetectionPage)
@@ -83,10 +87,11 @@ def export_detections(
             rows = stream_db.scalars(q.execution_options(yield_per=2000))
             buf = io.StringIO()
             w = csv.writer(buf)
-            w.writerow(["time_utc", "camera", "analysis_id", "behaviour", "posture", "state", "confidence",
+            w.writerow(["time_utc", "camera", "analysis_id", "cow_id", "behaviour", "posture", "state", "confidence",
                         "x1", "y1", "x2", "y2"])
             for d in rows:
-                w.writerow([_utc_iso(d.frame_time), cameras.get(d.camera_id, ""), d.analysis_id, d.behaviour,
+                w.writerow([_utc_iso(d.frame_time), cameras.get(d.camera_id, ""), d.analysis_id,
+                            "" if d.track_id is None else d.track_id, d.behaviour,
                             d.posture or "", d.state or "", d.confidence, d.x1, d.y1, d.x2, d.y2])
                 if buf.tell() > 64_000:
                     yield buf.getvalue()

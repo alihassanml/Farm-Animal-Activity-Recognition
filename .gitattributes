@@ -1,0 +1,4 @@
+# Keep script line endings correct on every OS
+*.bat text eol=crlf
+*.sh  text eol=lf
+*.pt  binary

@@ -2,9 +2,10 @@ import re
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator, model_validator
 
-from .models import BEHAVIOURS, RULE_TYPES
+from .models import BEHAVIOURS, CAMERA_KINDS, RULE_TYPES, infer_camera_kind
+from .services.sources import validate_source
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -159,6 +160,7 @@ class DetectionOut(ORM):
     camera_id: int | None
     frame_index: int
     frame_time: UTCDateTime
+    track_id: int | None
     posture: str | None
     state: str | None
     behaviour: str
@@ -183,8 +185,21 @@ class AnalysisOut(ORM):
     finished_at: UTCDateTime | None
 
 
+class CowSummary(BaseModel):
+    """One tracked cow within an analysis."""
+
+    track_id: int
+    first_seen: UTCDateTime
+    last_seen: UTCDateTime
+    detections: int
+    behaviour_counts: dict[str, int]
+    main_behaviour: str
+
+
 class AnalysisDetail(AnalysisOut):
     behaviour_counts: dict[str, int]
+    cow_count: int  # tracked cows (a cow that leaves and comes back counts again; 1-2 frame flickers don't count)
+    cows: list[CowSummary]  # most-seen first, at most 200
     detections: list[DetectionOut]  # image: all; video/camera: first 500
 
 
@@ -194,42 +209,84 @@ class DetectionPage(BaseModel):
 
 
 # ---------- Cameras ----------
+CameraKind = Literal["webcam", "stream", "video"]
+
+
 class CameraIn(BaseModel):
     name: str = Field(max_length=120)
+    kind: CameraKind | None = None  # left out: a number is a webcam, a URL a stream
     source: str = Field(max_length=500)
     location: str | None = Field(default=None, max_length=200)
 
     _name = field_validator("name")(_clean_name)
 
-    @field_validator("source")
-    @classmethod
-    def _source(cls, v: str) -> str:
-        v = v.strip()
-        if v.isdigit() or re.match(r"^(rtsp|rtsps|http|https)://\S+$", v, re.I):
-            return v
-        raise ValueError("Use a webcam index (e.g. 0) or an rtsp:// / http(s):// stream URL")
+    @model_validator(mode="after")
+    def _check_source(self):
+        self.kind = self.kind or infer_camera_kind(self.source)
+        self.source = validate_source(self.kind, self.source)
+        return self
 
 
 class CameraUpdate(BaseModel):
+    """Partial update; the router re-validates the source against the (new) kind."""
+
     name: str | None = Field(default=None, max_length=120)
+    kind: CameraKind | None = None
     source: str | None = Field(default=None, max_length=500)
     location: str | None = Field(default=None, max_length=200)
 
-    @field_validator("source")
-    @classmethod
-    def _source(cls, v: str | None) -> str | None:
-        return None if v is None else CameraIn._source(v)
+
+assert set(CameraKind.__args__) == set(CAMERA_KINDS)  # type: ignore[attr-defined]
 
 
 class CameraOut(BaseModel):
     id: int
     name: str
-    source: str
+    kind: CameraKind
+    source: str  # stream credentials masked for members; for an uploaded video, its file name
+    uploaded: bool  # video kind backed by an uploaded file
     location: str | None
     is_active: bool
     status: str  # stopped|connecting|running|error
     last_error: str | None
     created_at: UTCDateTime
+
+
+class LiveCow(BaseModel):
+    track_id: int | None
+    behaviour: str
+    posture: str | None
+    state: str | None
+    confidence: float
+
+
+class LiveSession(BaseModel):
+    """Running totals since monitoring was started."""
+
+    analysis_id: int | None
+    started_at: UTCDateTime
+    detections: int  # stored (one row per cow per CAMERA_SAMPLE_SECONDS)
+    cows_tracked: int  # IDs stored in at least 3 samples
+    behaviour_counts: dict[str, int]
+
+
+class LiveStatus(BaseModel):
+    """Live state of a camera: GET /cameras/{id}/live and every text message on its WebSocket."""
+
+    type: Literal["status"] = "status"
+    status: str  # stopped|connecting|running|error
+    last_error: str | None
+    active: bool  # monitoring is switched on
+    frame_at: UTCDateTime | None  # last frame read from the camera
+    in_view: list[LiveCow]  # cows in the latest analysed frame
+    session: LiveSession | None  # None while stopped
+    stream_fps: float  # live video frames per second (only produced while someone watches)
+    detect_fps: float  # model runs per second
+
+
+class CameraLive(BaseModel):
+    camera: CameraOut
+    live: LiveStatus
 
 
 # ---------- Animals ----------
@@ -304,7 +361,8 @@ class TimeBucket(BaseModel):
 
 
 class DashboardSummary(BaseModel):
-    peak_cows_today: int  # most cows seen in one frame today (no tracking, so not a unique count)
+    # Herd numbers below come from camera monitoring only; uploads have no real capture time.
+    peak_cows_today: int  # most cows seen in one frame today (track IDs reset, so not a unique count)
     active_alerts: int
     cameras_online: int
     cameras_total: int

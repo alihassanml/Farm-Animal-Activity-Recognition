@@ -1,6 +1,6 @@
 """Herd-level alert rules, evaluated per camera.
 
-There is no per-cow tracking, so rules look at all detections from one camera in a time window.
+Rules are herd-level: they look at all detections from one camera in a time window.
 Guards against noise:
   - a rule only runs once the camera has been monitored for the whole window;
   - the window must contain at least MIN_DETECTIONS cow detections (cows actually visible);

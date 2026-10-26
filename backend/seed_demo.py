@@ -11,10 +11,10 @@ time to regenerate the last 24 hours of activity.
 import random
 from datetime import timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from app.auth import hash_password
-from app.database import Base, SessionLocal, engine
+from app.database import Base, SessionLocal, add_missing_columns, engine
 from app.models import (
     ROLE_ADMIN,
     ROLE_MEMBER,
@@ -35,6 +35,8 @@ DEMO_EMAIL = "demo@farm.local"
 DEMO_PASSWORD = "demo12345"
 WORKSPACE = "Green Valley Dairy"
 SAMPLE_MINUTES = 2  # one stored frame per camera every 2 minutes keeps the demo DB small
+LEAVE_CHANCE = 0.03  # per sample: a cow stays in view ~1 hour on average, then gets a new ID
+CHANGE_CHANCE = 0.25  # per sample: a behaviour lasts ~8 minutes on average
 
 # Behaviour mix by hour of day: (standing, lying, foraging, drinking, rumination)
 DAY_PATTERN = {
@@ -75,9 +77,18 @@ def random_box(rng: random.Random) -> tuple[float, float, float, float]:
     return round(x1, 4), round(y1, 4), round(x1 + w, 4), round(y1 + h, 4)
 
 
+def nudge(box: tuple[float, ...], rng: random.Random) -> tuple[float, ...]:
+    """Small movement between samples, kept inside the frame."""
+    x1, y1, x2, y2 = box
+    dx = min(max(rng.uniform(-0.01, 0.01), -x1), 1 - x2)
+    dy = min(max(rng.uniform(-0.01, 0.01), -y1), 1 - y2)
+    return round(x1 + dx, 4), round(y1 + dy, 4), round(x2 + dx, 4), round(y2 + dy, 4)
+
+
 def main() -> None:
     rng = random.Random(42)
     Base.metadata.create_all(engine)
+    add_missing_columns()
     now = utcnow()
 
     with SessionLocal() as db:
@@ -127,6 +138,8 @@ def main() -> None:
             db.add(session)
             db.flush()
             rows = []
+            in_view: list[dict] = []  # cows the camera currently sees, each with its track ID
+            next_id = 1
             t, frame = start, 0
             while t <= now:
                 local_hour = (t + timedelta(hours=5)).hour  # Pakistan time (UTC+5)
@@ -138,12 +151,18 @@ def main() -> None:
                     weights[1] *= 1.4
                 if cam.name == "Water trough" and t > now - timedelta(hours=13):
                     weights[3] = 0.0  # trough camera: no drinking lately -> demo alert
-                for _ in range(max(1, herd + rng.randint(-2, 2))):
-                    b = rng.choices(BEHAVIOURS, weights)[0]
-                    x1, y1, x2, y2 = random_box(rng)
+                in_view = [c for c in in_view if rng.random() > LEAVE_CHANCE]
+                while len(in_view) < max(1, herd + rng.randint(-2, 2)):
+                    in_view.append({"id": next_id, "box": random_box(rng), "b": rng.choices(BEHAVIOURS, weights)[0]})
+                    next_id += 1
+                for c in in_view:
+                    if rng.random() < CHANGE_CHANCE or weights[BEHAVIOURS.index(c["b"])] == 0:
+                        c["b"] = rng.choices(BEHAVIOURS, weights)[0]
+                    c["box"] = nudge(c["box"], rng)
+                    b, (x1, y1, x2, y2) = c["b"], c["box"]
                     rows.append(Detection(
                         workspace_id=ws.id, analysis_id=session.id, camera_id=cam.id, frame_index=frame,
-                        frame_time=t, posture=b if b in ("standing", "lying") else None,
+                        frame_time=t, track_id=c["id"], posture=b if b in ("standing", "lying") else None,
                         state=b if b not in ("standing", "lying") else None, behaviour=b,
                         confidence=round(rng.uniform(0.42, 0.96), 3), x1=x1, y1=y1, x2=x2, y2=y2, created_at=t,
                     ))

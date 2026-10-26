@@ -46,6 +46,7 @@ class Det:
     y1: float
     x2: float
     y2: float
+    track_id: int | None = None  # cow ID from the tracker (per video / camera session)
 
     @property
     def behaviour(self) -> str:
@@ -147,6 +148,8 @@ def annotate(frame_bgr: np.ndarray, dets: list[Det]) -> np.ndarray:
         cv2.rectangle(img, p1, p2, color, thick)
         label = d.behaviour if not (d.posture and d.state) else f"{d.posture} + {d.state}"
         label = f"{label} {d.confidence:.2f}"
+        if d.track_id is not None:
+            label = f"#{d.track_id} {label}"
         (tw, th), base = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
         ty = max(p1[1], th + base + 4)
         cv2.rectangle(img, (p1[0], ty - th - base - 4), (p1[0] + tw + 6, ty), color, -1)

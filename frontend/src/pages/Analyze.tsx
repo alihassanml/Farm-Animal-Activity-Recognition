@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { errorMessage } from '../api/client'
 import { analysisApi } from '../api/endpoints'
-import type { AnalysisDetail, Behaviour } from '../api/types'
+import type { AnalysisDetail, Behaviour, CowSummary } from '../api/types'
 import { StatusBadge } from '../components/AnalysisStatusBadge'
 import { ModelStatus } from '../components/ModelStatus'
 import { BehaviourBadge } from '../components/ui/Badge'
@@ -14,8 +14,8 @@ import { Table, Td, Th } from '../components/ui/Table'
 import { Tabs } from '../components/ui/Tabs'
 import { useWorkspace } from '../context/workspace'
 import { useAsync, useInterval } from '../hooks/useAsync'
-import { BEHAVIOURS } from '../lib/behaviour'
-import { formatDateTime, formatPercent, formatTime } from '../lib/format'
+import { BEHAVIOUR_COLOR, BEHAVIOUR_LABEL, BEHAVIOURS } from '../lib/behaviour'
+import { formatDateTime, formatOffset, formatPercent } from '../lib/format'
 
 type Mode = 'image' | 'video'
 
@@ -109,7 +109,7 @@ export default function Analyze() {
               </label>
               {uploadError && <Notice>{uploadError}</Notice>}
               <Button type="submit" icon={<Upload className="size-4" aria-hidden />} loading={uploading} disabled={!file}>
-                {uploading ? (mode === 'image' ? 'Analyzing…' : 'Uploading…') : `Analyze ${mode}`}
+                {uploading ? (mode === 'image' ? 'Analyzing' : 'Uploading') : `Analyze ${mode}`}
               </Button>
             </form>
           </CardBody>
@@ -190,12 +190,15 @@ function ResultPanel({
   if (!detail) return <Card><ErrorState message={error ?? ''} onRetry={retry} /></Card>
 
   const counts = BEHAVIOURS.filter((b) => (detail.behaviour_counts[b] ?? 0) > 0)
+  // Video frames are stamped upload time + position in the video; show the position.
+  const start = new Date(detail.created_at).getTime()
+  const at = (iso: string) => formatOffset((new Date(iso).getTime() - start) / 1000)
 
   return (
     <Card className="min-w-0">
       <CardHeader
         title={detail.original_name ?? `Analysis #${detail.id}`}
-        description={`${detail.type === 'image' ? 'Image' : 'Video'} · ${formatDateTime(detail.created_at)}`}
+        description={`${detail.type === 'image' ? 'Image' : 'Video'} uploaded ${formatDateTime(detail.created_at)}`}
         actions={<StatusBadge status={detail.status} />}
       />
       <CardBody className="flex flex-col gap-5">
@@ -204,7 +207,7 @@ function ResultPanel({
         {(detail.status === 'queued' || detail.status === 'processing') && (
           <div>
             <div className="mb-1.5 flex justify-between text-sm">
-              <span className="text-muted">{detail.status === 'queued' ? 'Waiting to start…' : 'Processing video…'}</span>
+              <span className="text-muted">{detail.status === 'queued' ? 'Waiting to start' : 'Processing video'}</span>
               <span className="tabular-nums">{Math.round(detail.progress)}%</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-neutral-soft" role="progressbar" aria-valuenow={Math.round(detail.progress)} aria-valuemin={0} aria-valuemax={100}>
@@ -226,7 +229,9 @@ function ResultPanel({
             <p className="text-sm text-muted">
               {detail.detection_count === 0
                 ? 'No cows were detected.'
-                : `${detail.detection_count} detection${detail.detection_count === 1 ? '' : 's'}${detail.type === 'video' ? ' across sampled frames' : ''}.`}
+                : detail.type === 'image'
+                  ? `${plural(detail.detection_count, 'cow')} detected.`
+                  : `${plural(detail.cow_count, 'cow')} tracked, ${plural(detail.detection_count, 'detection')} across sampled frames.`}
             </p>
             {counts.length > 0 && (
               <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
@@ -247,10 +252,13 @@ function ResultPanel({
         )}
       </CardBody>
 
+      {detail.type !== 'image' && detail.cows.length > 0 && <CowTable detail={detail} at={at} />}
+
       {detail.detections.length > 0 && (
         <Table label="Detections">
           <thead>
             <tr>
+              <Th>Cow</Th>
               {detail.type !== 'image' && <Th>Time</Th>}
               <Th>Behaviour</Th>
               <Th>Posture</Th>
@@ -259,9 +267,10 @@ function ResultPanel({
             </tr>
           </thead>
           <tbody>
-            {detail.detections.slice(0, 100).map((d) => (
+            {detail.detections.slice(0, detail.type === 'image' ? 100 : VIDEO_ROWS).map((d) => (
               <tr key={d.id}>
-                {detail.type !== 'image' && <Td className="whitespace-nowrap text-muted tabular-nums">{formatTime(d.frame_time)}</Td>}
+                <Td className="tabular-nums">{d.track_id ? `#${d.track_id}` : '—'}</Td>
+                {detail.type !== 'image' && <Td className="whitespace-nowrap text-muted tabular-nums">{at(d.frame_time)}</Td>}
                 <Td>
                   <BehaviourBadge behaviour={d.behaviour} />
                 </Td>
@@ -273,6 +282,83 @@ function ResultPanel({
           </tbody>
         </Table>
       )}
+      {detail.type !== 'image' && detail.detection_count > VIDEO_ROWS && (
+        <p className="px-5 py-3 text-sm text-muted">
+          First {VIDEO_ROWS} of {detail.detection_count} detections.{' '}
+          <Link to={`${path('activity')}?analysis=${detail.id}`} className="font-medium text-primary hover:underline">
+            See all in Activity logs
+          </Link>
+        </p>
+      )}
     </Card>
+  )
+}
+
+const VIDEO_ROWS = 20 // the cow table summarises videos; the full log is on the Activity page
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+/** One row per tracked cow: when it was in view and how its time was split between behaviours. */
+function CowTable({ detail, at }: { detail: AnalysisDetail; at: (iso: string) => string }) {
+  const { path } = useWorkspace()
+  return (
+    <div className="border-t border-line">
+      <div className="px-5 py-4">
+        <h4 className="font-semibold">Cows</h4>
+        <p className="mt-0.5 text-sm text-muted">
+          Each cow keeps its number while it stays in view. A cow that leaves and comes back gets a new number.
+          {detail.cow_count > detail.cows.length && ` Showing the ${detail.cows.length} most-seen of ${detail.cow_count}.`}
+        </p>
+      </div>
+      <Table label="Tracked cows">
+        <thead>
+          <tr>
+            <Th>Cow</Th>
+            <Th>In view</Th>
+            <Th>Mostly</Th>
+            <Th className="w-1/3">Time split</Th>
+            <Th>
+              <span className="sr-only">Actions</span>
+            </Th>
+          </tr>
+        </thead>
+        <tbody>
+          {detail.cows.map((c) => (
+            <tr key={c.track_id}>
+              <Td className="font-medium tabular-nums">#{c.track_id}</Td>
+              <Td className="whitespace-nowrap text-muted tabular-nums">
+                {at(c.first_seen)}–{at(c.last_seen)}
+              </Td>
+              <Td>
+                <BehaviourBadge behaviour={c.main_behaviour} />
+              </Td>
+              <Td>
+                <TimeSplit cow={c} />
+              </Td>
+              <Td className="text-right">
+                <Link
+                  to={`${path('activity')}?analysis=${detail.id}&cow=${c.track_id}`}
+                  className="text-sm font-medium whitespace-nowrap text-primary hover:underline"
+                >
+                  Detections
+                </Link>
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
+  )
+}
+
+function TimeSplit({ cow }: { cow: CowSummary }) {
+  const parts = BEHAVIOURS.map((b) => ({ b, n: cow.behaviour_counts[b] ?? 0 })).filter((p) => p.n > 0)
+  const label = parts.map((p) => `${BEHAVIOUR_LABEL[p.b]} ${Math.round((p.n / cow.detections) * 100)}%`).join(', ')
+  return (
+    <div className="flex h-2.5 min-w-24 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={label} title={label}>
+      {parts.map((p) => (
+        <div key={p.b} style={{ width: `${(p.n / cow.detections) * 100}%`, backgroundColor: BEHAVIOUR_COLOR[p.b] }} />
+      ))}
+    </div>
   )
 }

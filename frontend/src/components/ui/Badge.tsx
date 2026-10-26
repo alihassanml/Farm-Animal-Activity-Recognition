@@ -20,11 +20,15 @@ export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: R
   )
 }
 
+/** Behaviour label in its chart/box colour on an 8% tint of it (text contrast stays above 4.5:1). */
 export function BehaviourBadge({ behaviour }: { behaviour: Behaviour | string }) {
   const b = behaviour as Behaviour
+  const color = BEHAVIOUR_COLOR[b] ?? '#5f6762'
   return (
-    <span className="inline-flex items-center gap-2 text-sm whitespace-nowrap">
-      <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: BEHAVIOUR_COLOR[b] ?? '#5f6762' }} aria-hidden />
+    <span
+      className="inline-flex items-center rounded-md px-2 py-0.5 text-sm font-medium whitespace-nowrap"
+      style={{ color, backgroundColor: `${color}14` }}
+    >
       {BEHAVIOUR_LABEL[b] ?? behaviour}
     </span>
   )

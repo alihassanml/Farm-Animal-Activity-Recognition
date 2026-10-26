@@ -1,6 +1,6 @@
 from collections.abc import Iterator
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import Engine, create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import get_settings
@@ -28,6 +28,25 @@ SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
 class Base(DeclarativeBase):
     pass
+
+
+def add_missing_columns(bind: Engine = engine) -> list[str]:
+    """create_all() never changes existing tables, so add new nullable columns to an older
+    database (e.g. detections.track_id) instead of making users delete farm.db."""
+    insp = inspect(bind)
+    added = []
+    with bind.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if not insp.has_table(table.name):
+                continue
+            have = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name not in have and col.nullable:
+                    conn.execute(text(
+                        f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col.type.compile(bind.dialect)}'
+                    ))
+                    added.append(f"{table.name}.{col.name}")
+    return added
 
 
 def get_db() -> Iterator[Session]:

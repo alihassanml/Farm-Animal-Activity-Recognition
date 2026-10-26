@@ -9,6 +9,7 @@ import type {
   Behaviour,
   Camera,
   CameraInput,
+  CameraLive,
   DashboardSummary,
   DetectionPage,
   Health,
@@ -75,8 +76,21 @@ export const analysisApi = {
 export const cameraApi = {
   list: (ws: number) => api<Camera[]>(`/workspaces/${ws}/cameras`),
   create: (ws: number, body: CameraInput) => api<Camera>(`/workspaces/${ws}/cameras`, { method: 'POST', body }),
+  /** A camera that plays an uploaded video in a loop. */
+  createFromVideo: (ws: number, name: string, location: string | null, file: File) => {
+    const form = upload(file)
+    form.append('name', name)
+    if (location) form.append('location', location)
+    return api<Camera>(`/workspaces/${ws}/cameras/video`, { method: 'POST', form })
+  },
+  replaceVideo: (id: number, file: File) => api<Camera>(`/cameras/${id}/video`, { method: 'PUT', form: upload(file) }),
   update: (id: number, body: Partial<CameraInput>) => api<Camera>(`/cameras/${id}`, { method: 'PATCH', body }),
   remove: (id: number) => api<void>(`/cameras/${id}`, { method: 'DELETE' }),
+  live: (id: number) => api<CameraLive>(`/cameras/${id}/live`),
+  /** Newest frame with boxes drawn (404 until the camera has produced one). */
+  frameUrl: (id: number) => `${API_BASE}/cameras/${id}/frame.jpg`,
+  /** WebSocket with the live video (binary JPEG frames) and status (JSON text messages). */
+  liveSocketUrl: (id: number) => `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}${API_BASE}/cameras/${id}/ws`,
   start: (id: number) => api<Camera>(`/cameras/${id}/start`, { method: 'POST' }),
   stop: (id: number) => api<Camera>(`/cameras/${id}/stop`, { method: 'POST' }),
 }
@@ -87,6 +101,7 @@ export interface DetectionFilters {
   camera?: number
   behaviour?: Behaviour
   analysis?: number
+  cow?: number
 }
 
 export const detectionApi = {

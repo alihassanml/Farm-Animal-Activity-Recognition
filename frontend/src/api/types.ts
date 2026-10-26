@@ -72,6 +72,7 @@ export interface Detection {
   camera_id: number | null
   frame_index: number
   frame_time: string
+  track_id: number | null
   posture: string | null
   state: string | null
   behaviour: Behaviour
@@ -82,8 +83,20 @@ export interface Detection {
   y2: number
 }
 
+/** One tracked cow within an analysis (IDs are numbered per video / camera session). */
+export interface CowSummary {
+  track_id: number
+  first_seen: string
+  last_seen: string
+  detections: number
+  behaviour_counts: Partial<Record<Behaviour, number>>
+  main_behaviour: Behaviour
+}
+
 export interface AnalysisDetail extends Analysis {
   behaviour_counts: Partial<Record<Behaviour, number>>
+  cow_count: number
+  cows: CowSummary[]
   detections: Detection[]
 }
 
@@ -93,11 +106,15 @@ export interface DetectionPage {
 }
 
 export type CameraStatus = 'stopped' | 'connecting' | 'running' | 'error'
+/** webcam: index on the server; stream: RTSP/RTMP/HTTP live feed; video: recorded video played in a loop */
+export type CameraKind = 'webcam' | 'stream' | 'video'
 
 export interface Camera {
   id: number
   name: string
+  kind: CameraKind
   source: string
+  uploaded: boolean
   location: string | null
   is_active: boolean
   status: CameraStatus
@@ -105,8 +122,43 @@ export interface Camera {
   created_at: string
 }
 
+export interface LiveCow {
+  track_id: number | null
+  behaviour: Behaviour
+  posture: string | null
+  state: string | null
+  confidence: number
+}
+
+export interface LiveSession {
+  analysis_id: number | null
+  started_at: string
+  detections: number
+  cows_tracked: number
+  behaviour_counts: Partial<Record<Behaviour, number>>
+}
+
+/** Live state of a camera: from GET /cameras/{id}/live and every status message on its WebSocket. */
+export interface LiveStatus {
+  type: 'status'
+  status: CameraStatus
+  last_error: string | null
+  active: boolean
+  frame_at: string | null
+  in_view: LiveCow[]
+  session: LiveSession | null
+  stream_fps: number
+  detect_fps: number
+}
+
+export interface CameraLive {
+  camera: Camera
+  live: LiveStatus
+}
+
 export interface CameraInput {
   name: string
+  kind: CameraKind
   source: string
   location: string | null
 }
@@ -161,8 +213,14 @@ export interface DashboardSummary {
 }
 
 export interface Health {
-  status: string
+  status: 'ok' | 'degraded'
+  version: string
   model_loaded: boolean
   model_mode: 'single' | 'dual'
   model_error: string | null
+  database_ok: boolean
+  database_error: string | null
+  cameras_running: number
+  videos_waiting: number
+  disk_free_mb: number | null
 }

@@ -28,6 +28,13 @@ RULE_NO_FORAGING = "no_foraging"
 RULE_NO_DRINKING = "no_drinking"
 RULE_TYPES = (RULE_LYING_RATIO, RULE_NO_FORAGING, RULE_NO_DRINKING)
 
+CAMERA_KINDS = ("webcam", "stream", "video")
+
+
+def infer_camera_kind(source: str) -> str:
+    """Kind for cameras saved before kinds existed: a number is a webcam, anything else a stream."""
+    return "webcam" if source.strip().isdigit() else "stream"
+
 
 def utcnow() -> datetime:
     """Naive UTC timestamp (SQLite has no timezone support; the API adds the 'Z')."""
@@ -97,11 +104,24 @@ class Camera(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
-    source: Mapped[str] = mapped_column(String(500))  # webcam index ("0") or stream URL
+    # webcam | stream | video (see services/sources.py); empty on cameras saved before kinds existed
+    kind: Mapped[str | None] = mapped_column(String(10))
+    # webcam index ("0"), stream URL, video URL, or the original name of an uploaded video
+    source: Mapped[str] = mapped_column(String(500))
+    file_path: Mapped[str | None] = mapped_column(String(500))  # uploaded video on disk
     location: Mapped[str | None] = mapped_column(String(200))
     # True while monitoring is switched on; workers are resumed for these cameras on startup.
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    @property
+    def source_kind(self) -> str:
+        return self.kind or infer_camera_kind(self.source)
+
+    @property
+    def open_target(self) -> str:
+        """What the worker opens: the uploaded file if there is one, else the source string."""
+        return self.file_path or self.source
 
 
 class Animal(Base):
@@ -151,6 +171,7 @@ class Detection(Base):
     camera_id: Mapped[int | None] = mapped_column(ForeignKey("cameras.id", ondelete="SET NULL"))
     frame_index: Mapped[int] = mapped_column(Integer, default=0)
     frame_time: Mapped[datetime] = mapped_column(DateTime)
+    track_id: Mapped[int | None] = mapped_column(Integer)  # cow ID within this analysis (1, 2, 3 ...)
     posture: Mapped[str | None] = mapped_column(String(20))
     state: Mapped[str | None] = mapped_column(String(20))
     behaviour: Mapped[str] = mapped_column(String(20))

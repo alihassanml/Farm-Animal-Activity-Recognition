@@ -9,3 +9,4 @@ PyJWT
 ultralytics
 opencv-python
 numpy
+scipy

@@ -49,8 +49,8 @@ def clear_auth_cookie(response: Response) -> None:
     response.delete_cookie(COOKIE_NAME, path="/")
 
 
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    token = request.cookies.get(COOKIE_NAME)
+def user_from_token(db: Session, token: str | None) -> User:
+    """The logged-in user for an auth cookie value (raises 401). Used by HTTP and WebSocket routes."""
     if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not logged in")
     try:
@@ -62,6 +62,10 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not logged in")
     return user
+
+
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    return user_from_token(db, request.cookies.get(COOKIE_NAME))
 
 
 @dataclass

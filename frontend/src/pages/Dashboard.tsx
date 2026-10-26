@@ -1,10 +1,9 @@
-import { ArrowRight, Bell, Cctv, Check, PawPrint, ScanSearch, Video, X } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowRight, Bell, Cctv, PawPrint, ScanSearch, Video } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { cameraApi, dashboardApi } from '../api/endpoints'
 import type { Alert, Camera, DashboardSummary } from '../api/types'
-import { Badge } from '../components/ui/Badge'
+import { Badge, BehaviourBadge } from '../components/ui/Badge'
 import { ButtonLink } from '../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
 import { EmptyState, ErrorState, Loading } from '../components/ui/States'
@@ -13,8 +12,8 @@ import { useAuth } from '../context/auth'
 import { useWorkspace } from '../context/workspace'
 import { useAsync, useInterval } from '../hooks/useAsync'
 import { BEHAVIOUR_COLOR, BEHAVIOUR_LABEL, BEHAVIOURS } from '../lib/behaviour'
+import { KIND_LABEL } from '../lib/camera'
 import { formatHour, formatNumber, formatRelative } from '../lib/format'
-import { getFlag, setFlag } from '../lib/storage'
 
 const AXIS = { fontSize: 12, fill: '#5f6762' }
 const TOOLTIP_STYLE = { borderRadius: 8, border: '1px solid #e3e6e4', fontSize: 13, boxShadow: '0 8px 24px -8px rgb(16 24 20 / 0.15)' }
@@ -65,8 +64,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <GettingStarted key={workspace.id} data={data} />
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Cows detected today" value={formatNumber(data.peak_cows_today)} hint="Most cows seen together in one frame" icon={PawPrint} />
         <StatCard
@@ -95,15 +92,15 @@ export default function Dashboard() {
 
       <div className="grid gap-6 xl:grid-cols-[3fr_2fr]">
         <Card>
-          <CardHeader title="Today’s herd activity" description={`${formatNumber(totalToday)} detections since midnight`} />
+          <CardHeader title="Today’s herd activity" description={`${formatNumber(totalToday)} camera detections since midnight`} />
           <CardBody>
             {totalToday === 0 ? (
               <EmptyState
-                title="No detections today"
-                description="Analyze an image or video, or start a camera, to see the herd’s activity here."
+                title="No camera activity today"
+                description="Start monitoring a camera to see the herd’s activity here. Results of uploaded images and videos are on the Analyze page."
                 action={
-                  <ButtonLink to={path('analyze')} size="sm">
-                    Analyze footage
+                  <ButtonLink to={path('cameras')} size="sm">
+                    Go to cameras
                   </ButtonLink>
                 }
               />
@@ -180,69 +177,6 @@ export default function Dashboard() {
   )
 }
 
-function GettingStarted({ data }: { data: DashboardSummary }) {
-  const { workspace, path } = useWorkspace()
-  const key = `setupDismissed.${workspace.id}`
-  const [dismissed, setDismissed] = useState(() => getFlag(key))
-
-  const steps = [
-    { done: data.analyses_total > 0, title: 'Analyze your first image or video', text: 'See how the model labels each cow.', to: path('analyze'), cta: 'Analyze' },
-    { done: data.cameras_total > 0, title: 'Add a camera', text: 'Monitor the barn around the clock.', to: path('cameras'), cta: 'Add camera' },
-    { done: data.members_total > 1, title: 'Invite your team', text: 'Share alerts with farm staff and your vet.', to: path('settings'), cta: 'Invite' },
-  ]
-  const doneCount = steps.filter((s) => s.done).length
-  if (dismissed || doneCount === steps.length) return null
-
-  return (
-    <Card>
-      <div className="flex items-start justify-between gap-4 px-5 pt-4">
-        <div>
-          <h3 className="text-base font-semibold">Get your workspace ready</h3>
-          <p className="mt-0.5 text-sm text-muted">
-            {doneCount} of {steps.length} done
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setFlag(key)
-            setDismissed(true)
-          }}
-          className="rounded-md p-1 text-muted hover:bg-neutral-soft hover:text-ink"
-          aria-label="Hide setup steps"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
-      <div className="mx-5 mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-soft">
-        <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
-      </div>
-      <ol className="grid gap-px p-2 sm:grid-cols-3">
-        {steps.map((s) => (
-          <li key={s.title} className="flex items-start gap-3 rounded-md p-3">
-            <span
-              className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full ${s.done ? 'bg-primary text-white' : 'border border-line-strong text-transparent'}`}
-              aria-hidden
-            >
-              <Check className="size-3.5" strokeWidth={3} />
-            </span>
-            <div className="min-w-0">
-              <p className={`font-medium ${s.done ? 'text-muted line-through' : ''}`}>{s.title}</p>
-              <p className="text-sm text-muted">{s.text}</p>
-              {!s.done && (
-                <Link to={s.to} className="mt-1.5 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-                  {s.cta} <ArrowRight className="size-3.5" aria-hidden />
-                </Link>
-              )}
-              <span className="sr-only">{s.done ? '(done)' : '(not done)'}</span>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </Card>
-  )
-}
-
 function BehaviourBreakdown({ data, total }: { data: DashboardSummary; total: number }) {
   const rows = BEHAVIOURS.map((b) => ({ b, n: data.behaviour_counts[b] })).sort((x, y) => y.n - x.n)
   return (
@@ -266,11 +200,8 @@ function BehaviourBreakdown({ data, total }: { data: DashboardSummary; total: nu
         <tbody>
           {rows.map(({ b, n }) => (
             <tr key={b} className="border-t border-line">
-              <td className="py-2.5">
-                <span className="flex items-center gap-2.5">
-                  <span className="size-2.5 rounded-full" style={{ backgroundColor: BEHAVIOUR_COLOR[b] }} aria-hidden />
-                  {BEHAVIOUR_LABEL[b]}
-                </span>
+              <td className="py-2">
+                <BehaviourBadge behaviour={b} />
               </td>
               <td className="py-2.5 text-right tabular-nums">{formatNumber(n)}</td>
               <td className="py-2.5 pl-6">
@@ -343,14 +274,13 @@ function ActivityChart({ data }: { data: DashboardSummary }) {
   const buckets = completeHours(data)
   const rows = buckets.map((t) => ({ time: formatHour(t.time), ...t.counts }))
   const hasData = buckets.some((t) => BEHAVIOURS.some((b) => t.counts[b] > 0))
-  if (!hasData) return <EmptyState title="No activity in the last 24 hours" description="The chart fills in as cameras and uploads add detections." />
+  if (!hasData) return <EmptyState title="No activity in the last 24 hours" description="The chart fills in while cameras are being monitored." />
   return (
     <div>
-      <ul className="mb-4 flex flex-wrap gap-x-5 gap-y-2" aria-hidden>
+      <ul className="mb-4 flex flex-wrap gap-2" aria-hidden>
         {BEHAVIOURS.map((b) => (
-          <li key={b} className="flex items-center gap-2 text-sm text-muted">
-            <span className="size-2.5 rounded-full" style={{ backgroundColor: BEHAVIOUR_COLOR[b] }} />
-            {BEHAVIOUR_LABEL[b]}
+          <li key={b}>
+            <BehaviourBadge behaviour={b} />
           </li>
         ))}
       </ul>
@@ -397,7 +327,7 @@ function AlertItem({ alert: a }: { alert: Alert }) {
       <div className="min-w-0 flex-1">
         <p className={`text-sm ${open ? 'font-medium text-ink' : 'text-muted'}`}>{a.message}</p>
         <p className="mt-0.5 text-xs text-muted">
-          {a.camera_name ?? 'Camera'} · {formatRelative(a.created_at)}
+          {a.camera_name ?? 'Camera'}, {formatRelative(a.created_at)}
         </p>
       </div>
       {open ? <Badge tone={danger ? 'danger' : 'warning'}>{danger ? 'High' : 'Medium'}</Badge> : <Badge>Acknowledged</Badge>}
@@ -413,20 +343,20 @@ const CAMERA_STATE: Record<Camera['status'], { label: string; tone: 'success' | 
 }
 
 function CameraItem({ camera: c }: { camera: Camera }) {
+  const { path } = useWorkspace()
   const s = CAMERA_STATE[c.status]
   return (
-    <li className="flex items-center gap-3 px-5 py-3.5">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
-        <Video className="size-4" aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{c.name}</p>
-        <p className="truncate text-xs text-muted">{c.location ?? (c.source.match(/^\d+$/) ? `Webcam ${c.source}` : 'Network camera')}</p>
-      </div>
-      <Badge tone={s.tone}>
-        {s.tone === 'success' && <span className="size-1.5 rounded-full bg-success" aria-hidden />}
-        {s.label}
-      </Badge>
+    <li>
+      <Link to={path(`cameras/${c.id}`)} className="flex items-center gap-3 px-5 py-3.5 hover:bg-page">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
+          <Video className="size-4" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{c.name}</p>
+          <p className="truncate text-xs text-muted">{c.location ?? KIND_LABEL[c.kind]}</p>
+        </div>
+        <Badge tone={s.tone}>{s.label}</Badge>
+      </Link>
     </li>
   )
 }

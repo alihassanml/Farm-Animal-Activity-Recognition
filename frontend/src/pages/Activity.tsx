@@ -30,6 +30,7 @@ export default function Activity() {
     camera: params.get('camera') ?? '',
     behaviour: params.get('behaviour') ?? '',
     analysis: params.get('analysis') ?? '',
+    cow: params.get('cow') ?? '',
   }
   const page = Math.max(0, Number(params.get('page') ?? 0) || 0)
   const [draft, setDraft] = useState(applied)
@@ -40,6 +41,7 @@ export default function Activity() {
     camera: applied.camera ? Number(applied.camera) : undefined,
     behaviour: (applied.behaviour || undefined) as Behaviour | undefined,
     analysis: applied.analysis ? Number(applied.analysis) : undefined,
+    cow: applied.analysis && applied.cow ? Number(applied.cow) : undefined,
   }
 
   const cameras = useAsync(() => cameraApi.list(workspace.id), [workspace.id])
@@ -57,7 +59,7 @@ export default function Activity() {
   }
 
   function clear() {
-    const empty = { from: '', to: '', camera: '', behaviour: '', analysis: '' }
+    const empty = { from: '', to: '', camera: '', behaviour: '', analysis: '', cow: '' }
     setDraft(empty)
     setParams(new URLSearchParams())
   }
@@ -106,14 +108,15 @@ export default function Activity() {
           </form>
           {applied.analysis && (
             <p className="mt-3 text-sm text-muted">
-              Showing detections from analysis #{applied.analysis} only.{' '}
+              Showing detections {applied.cow && `of cow #${applied.cow} `}from analysis #{applied.analysis} only.{' '}
               <button
                 type="button"
                 className="font-medium text-primary hover:underline"
                 onClick={() => {
-                  setDraft({ ...draft, analysis: '' })
+                  setDraft({ ...draft, analysis: '', cow: '' })
                   const next = new URLSearchParams(params)
                   next.delete('analysis')
+                  next.delete('cow')
                   next.delete('page')
                   setParams(next)
                 }}
@@ -159,6 +162,7 @@ export default function Activity() {
                 <tr>
                   <Th>Time</Th>
                   <Th>Source</Th>
+                  <Th>Cow</Th>
                   <Th>Behaviour</Th>
                   <Th>Posture</Th>
                   <Th>State</Th>
@@ -172,6 +176,7 @@ export default function Activity() {
                     <Td className="whitespace-nowrap">
                       {d.camera_id ? (cameraName.get(d.camera_id) ?? `Camera #${d.camera_id}`) : `Upload #${d.analysis_id}`}
                     </Td>
+                    <Td className="tabular-nums">{d.track_id ? `#${d.track_id}` : '—'}</Td>
                     <Td>
                       <BehaviourBadge behaviour={d.behaviour} />
                     </Td>

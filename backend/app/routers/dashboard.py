@@ -31,11 +31,15 @@ def summary(
     ws = access.workspace.id
     now = utcnow()
     today = local_day_start_utc(now, tz_offset)
+    # Herd activity comes from camera monitoring only: uploaded images and videos have no real
+    # capture time (they're stamped at upload), so they'd distort "today" and the hourly chart.
+    live = (Detection.workspace_id == ws, Detection.camera_id.is_not(None))
 
-    # No tracking, so "cows today" = the most cows seen together in a single frame today.
+    # Track IDs restart when a cow leaves the view, so "cows today" = the most cows seen together
+    # in a single frame today, not the number of IDs.
     per_frame = (
         select(func.count(Detection.id).label("n"))
-        .where(Detection.workspace_id == ws, Detection.frame_time >= today)
+        .where(*live, Detection.frame_time >= today)
         .group_by(Detection.analysis_id, Detection.frame_index)
         .subquery()
     )
@@ -44,7 +48,7 @@ def summary(
     counts = dict(
         db.execute(
             select(Detection.behaviour, func.count(Detection.id))
-            .where(Detection.workspace_id == ws, Detection.frame_time >= today)
+            .where(*live, Detection.frame_time >= today)
             .group_by(Detection.behaviour)
         ).all()
     )
@@ -54,7 +58,7 @@ def summary(
     hour_col = func.strftime("%Y-%m-%d %H:00:00", Detection.frame_time)
     hourly = db.execute(
         select(hour_col, Detection.behaviour, func.count(Detection.id))
-        .where(Detection.workspace_id == ws, Detection.frame_time >= first_hour)
+        .where(*live, Detection.frame_time >= first_hour)
         .group_by(hour_col, Detection.behaviour)
     ).all()
     buckets = {first_hour + timedelta(hours=i): {b: 0 for b in BEHAVIOURS} for i in range(24)}
@@ -66,7 +70,7 @@ def summary(
     last_seen = dict(
         db.execute(
             select(Detection.behaviour, func.max(Detection.frame_time))
-            .where(Detection.workspace_id == ws)
+            .where(*live)
             .group_by(Detection.behaviour)
         ).all()
     )

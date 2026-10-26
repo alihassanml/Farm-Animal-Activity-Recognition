@@ -10,6 +10,7 @@ import Alerts from './pages/Alerts'
 import Analyze from './pages/Analyze'
 import Animals from './pages/Animals'
 import { Login, Signup } from './pages/AuthPages'
+import CameraLive from './pages/CameraLive'
 import Cameras from './pages/Cameras'
 import Landing from './pages/Landing'
 import NotFound from './pages/NotFound'
@@ -48,6 +49,7 @@ export default function App() {
               />
               <Route path="analyze" element={<Analyze />} />
               <Route path="cameras" element={<Cameras />} />
+              <Route path="cameras/:cameraId" element={<CameraLive />} />
               <Route path="activity" element={<Activity />} />
               <Route path="alerts" element={<Alerts />} />
               <Route path="animals" element={<Animals />} />

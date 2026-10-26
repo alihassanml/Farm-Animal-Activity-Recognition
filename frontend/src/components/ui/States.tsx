@@ -2,7 +2,7 @@ import { AlertCircle, Info, Loader2, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from './Button'
 
-export function Loading({ label = 'Loading…', className = '' }: { label?: string; className?: string }) {
+export function Loading({ label = 'Loading', className = '' }: { label?: string; className?: string }) {
   return (
     <div role="status" className={`flex items-center justify-center gap-2 py-12 text-muted ${className}`}>
       <Loader2 className="size-5 animate-spin" aria-hidden />

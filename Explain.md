@@ -59,14 +59,17 @@ The system is a **website**. A user opens it in a browser such as Chrome.
 | **Landing page** | The front page. It explains the product and has *Sign up* and *Log in* buttons. |
 | **Sign up / Log in** | Create an account or enter with email and password. |
 | **Workspace** | A "farm" inside the system. A user creates one, e.g. *Green Valley Dairy*, and becomes its **admin**. |
-| **Dashboard** | The home screen: number of cows seen today, active alerts, cameras online, and charts of behaviour. |
-| **Analyze** | Upload a **photo** and get it back with a box drawn around every cow and its behaviour written on top. Or upload a **video**, which is processed in the background with a progress bar. |
-| **Cameras** | Add a farm camera (a USB webcam or a CCTV/IP camera) and press **Start**. The system then checks the camera once every second. |
-| **Activity logs** | A table of every detection (time, camera, behaviour, confidence). It can be filtered and downloaded as a CSV file for Excel. |
+| **Dashboard** | The home screen: most cows seen together today, active alerts, cameras online, analyses run; today's behaviour split; "herd signals" (how much the herd is lying and eating, and when drinking, eating and chewing were last seen); a chart of the last 24 hours; recent alerts and the camera list. These numbers come from the **cameras only**, because an uploaded photo or video has no real "when it happened" time. |
+| **Analyze** | Upload a **photo** and get it back with a box around every cow, its number and its behaviour (e.g. `#3 lying 0.82`). Or upload a **video**, which is processed in the background with a progress bar; the result has a **table per cow** (when it was in view, what it was mostly doing, how its time was split). |
+| **Cameras** | Every camera is shown as a **card**. While a camera is monitoring, its card shows a small live picture (updated every second) with a *LIVE* tag; otherwise it says it is off, connecting, or what the error is. **Click a card** to watch that camera. Admins add cameras here: a USB webcam, a CCTV/IP camera, or a recorded video. |
+| **Live view** | Opens when you click a camera card. Cameras are **off by default**, so opening one switches monitoring on. It shows smooth live video with every cow boxed, numbered and labelled, the cows in view right now, and totals since monitoring started. Here you can **Stop** or **Start** monitoring; admins can also **Edit** or **Delete** the camera. |
+| **Activity logs** | A table of every detection (time, camera, cow number, behaviour, confidence). It can be filtered and downloaded as a CSV file for Excel. |
 | **Alerts** | Warnings such as *"No drinking seen on Barn camera in the last 12 hours"*. Team members press **Acknowledge** once they have checked. Admins set the alert rules here. |
 | **Animals** | A simple register of animals (tag number, name, breed, age, notes). |
-| **Workspace settings** | Invite team members with a link, choose their role (admin or member), and remove members. |
+| **Workspace settings** | A **"Get your workspace ready"** checklist for new farms (analyse a first photo, add a camera, invite the team), the farm name, invite team members with a link, choose their role (admin or member), and remove members. |
 | **Profile** | Change your name or password. |
+
+The pages use the **full width of the screen**, so on a big monitor the cards and charts spread out instead of leaving empty space at the sides. On a phone the left menu becomes a menu button.
 
 ### Colours used for behaviours
 
@@ -117,7 +120,9 @@ The project has **three main parts**:
 The flow in one line:
 
 ```
-Camera / Photo / Video → YOLO11 finds each cow + its behaviour → saved in the database → shown on the dashboard → alert if something is unusual
+Camera / Photo / Video → YOLO11 finds each cow + its behaviour → tracker gives each cow a number
+      → saved in the database → shown on the dashboard → alert if something is unusual
+      → (cameras) live video with boxes sent to the browser
 ```
 
 ---
@@ -401,6 +406,8 @@ The **backend** is the server program. It runs on a computer, receives requests 
 | **Pydantic** | Checks that incoming data is valid | E.g. rejects an email without "@", or a password shorter than 8 characters |
 | **Ultralytics + PyTorch** | Runs the YOLO11 model | Same library used for training |
 | **OpenCV** | Reads images, videos and camera streams; draws boxes | Industry-standard computer-vision library |
+| **NumPy + SciPy** | Maths on pictures and boxes; SciPy has the **Hungarian algorithm** | Used by the cow tracker (section 11.5) |
+| **WebSocket** | A connection between browser and server that stays open | Sends the live camera video to the browser without asking again for every picture |
 | **bcrypt** | Scrambles passwords safely | So real passwords are never stored |
 | **PyJWT** | Creates login tokens | Keeps users logged in securely |
 
@@ -426,10 +433,10 @@ Think of the database as an **Excel file with several sheets (tables)**:
 | `workspaces` | Each farm/team |
 | `workspace_members` | Who belongs to which workspace, and their role (admin/member) |
 | `invites` | Invite links (email, role, secret token, expiry after 7 days) |
-| `cameras` | Camera name, source (webcam number or stream address), location, on/off |
+| `cameras` | Camera name, type (webcam / stream / recorded video), source (webcam number, stream address, video link or uploaded file), location, on/off |
 | `animals` | Tag ID, name, breed, age, notes |
 | `analyses` | Each upload or camera session: type, status (queued / processing / done / failed), progress |
-| `detections` | **Every cow found**: time, behaviour, posture, state, confidence, box position |
+| `detections` | **Every cow found**: time, cow ID, behaviour, posture, state, confidence, box position |
 | `alert_rules` | Rules like "alert if lying > 70 % for 1 hour" |
 | `alerts` | Alerts that were raised, and who acknowledged them |
 
@@ -440,13 +447,64 @@ Every piece of data belongs to a **workspace**. The system always checks that yo
 Some jobs take a long time, so they run **in the background** while the website stays responsive:
 
 - **Video worker:** an uploaded video is processed at **1 frame per second** (a 10-minute video → 600 pictures checked). The progress bar updates while it works. If the server restarts, unfinished videos are started again automatically.
-- **Camera workers:** each running camera gets its **own worker**. It keeps reading the live stream, checks one frame every second, and saves the detections. If the camera disconnects, it keeps trying to reconnect every few seconds.
+- **Camera workers:** each running camera gets its **own worker**. One part reads the camera at full speed; another part runs the AI on the newest picture (once a second normally, up to 8 times a second while someone watches the live view), tracks the cows, and saves **one record per cow per second**. If the camera disconnects, it tries again every 5 seconds.
+- Cameras that were on when the server stopped are **switched on again** when it starts.
 - The model is **loaded once at startup** (not on every request), and only one picture goes through it at a time so the workers don't interfere with each other.
 
-### 11.5 Supported cameras
+### 11.5 Cow IDs: following each cow over time (tracking)
+
+The model looks at **one picture at a time**. On its own it cannot tell that the cow in this second's frame is the same cow as one second ago. So we added a **tracker** that gives every cow a number (**#1, #2, #3 …**) and keeps that number while the cow stays in view. No extra model or training was needed.
+
+How it works, step by step:
+
+1. **Match by overlap.** A cow moves only a little in one second, so its new box overlaps its old box a lot. We measure the overlap (IoU) between every old cow and every new box.
+2. **Best one-to-one matching.** The **Hungarian algorithm** (a classic method for "who goes with whom" problems) pairs old cows with new boxes so the total overlap is as high as possible, and no box gets two cows.
+3. **Second chance by distance.** When a cow stands up or lies down, its box changes shape and the overlap drops. Boxes that are left over are matched by how close their centres are. (Professional trackers like ByteTrack also use two matching passes.)
+4. **New cow or lost cow.** A box with no match is a new cow and gets the next number. A cow that is missing for a few seconds (e.g. hidden behind another cow) keeps its number; after that it is dropped.
+5. **Smoothing the labels.** Each cow's behaviour is the **most common label over its last 5 frames**. If the model wrongly says "standing" for one frame in the middle of a long lie-down, the cow still shows as lying.
+6. **Ignoring flicker.** Sometimes the model sees a "cow" for just one frame. A cow only counts in the summaries after it was tracked in at least 3 frames.
+
+What the user gets: in a video result, a **table per cow** (when it was in view, what it was mostly doing, and a coloured bar showing how its time was split), and a link to all detections of that cow. The cow number is also drawn on each box and shown in the activity log and CSV export.
+
+**Honest limit:** a number is not an identity. If a cow leaves the camera view and comes back, it gets a new number. Recognising the *same* cow across days needs re-identification (future work).
+
+### 11.6 Supported cameras
 
 - **USB webcam / laptop camera**: enter its number, e.g. `0`.
-- **CCTV / IP camera**: enter its **RTSP** stream address, e.g. `rtsp://user:password@192.168.1.20/stream`. (RTSP is the standard way CCTV cameras send live video over a network.)
+- **CCTV / IP camera**: enter its stream address, usually **RTSP**, e.g. `rtsp://user:password@192.168.1.20/stream` (RTMP and HTTP(S) streams work too). (RTSP is the standard way CCTV cameras send live video over a network.)
+- **Recorded video**: a direct link to a video file (e.g. `https://example.com/barn.mp4`) or a video uploaded from the computer. The system plays it **at normal speed and starts again at the end**, so it behaves exactly like a live camera: the dashboard, alerts and activity log all work. This is how we demo live monitoring without a real barn camera. (A YouTube link is a web page, not a video file, so the system refuses it and says why.)
+
+**Watching a camera live.** The Cameras page shows every camera as a **card** with a small live picture while it is monitoring. The card picture is a **snapshot** (the newest picture with the boxes drawn on it) fetched once a second, which is light enough to show many cameras at once. Cameras are **off by default**; clicking a card opens that camera's **Live view** page and switches monitoring on. The camera keeps monitoring after you leave the page (so alerts and the activity log keep working) until someone presses **Stop**. The Live view page shows **smooth video** (as fast as the camera films, up to 30 pictures a second) with a box around every cow, the cow's number and its behaviour, e.g. `#3 lying 0.82`. Next to it is the list of cows in view right now, and totals since monitoring started.
+
+How it stays smooth, in simple words:
+- One part of the program **only reads the camera** and always keeps just the newest picture.
+- Another part **runs the AI on the newest picture** as often as the computer can (up to 8 times a second while someone watches). On a slow computer the boxes update less often, but the video never stutters or falls behind.
+- The video goes to the browser over a **WebSocket** (a connection that stays open), and the browser paints each picture straight onto the screen.
+- The database still gets one record per cow per second, so watching does not fill the disk faster.
+
+On our test computer the live view ran at the video's full **25 frames per second**, with the boxes refreshed about 7 times a second.
+
+### 11.7 What happens when something goes wrong
+
+A farm system must keep working when things fail, and tell people clearly what is wrong. We planned for each failure:
+
+| Failure | What the system does |
+|---|---|
+| Camera unplugged, network drops, video link down | The camera shows **Error** with the reason and **tries again every 5 seconds** by itself |
+| Database busy for a moment | The worker tries again; the website says "busy, try again" instead of crashing |
+| Someone uploads a broken or wrong file | Refused straight away with a helpful message; nothing is saved |
+| Disk full | A clear message; half-written files are deleted |
+| A bug in the server | The user sees a short **reference code**; the same code is in the log file with full details, so the developer finds the exact error |
+| Server is stopped in the middle of a video | It stops at once; the video **continues automatically** next time the server starts |
+| The model file is missing | The website still opens and shows a banner explaining the problem |
+| A wrong value in the settings file | The server stops at once with a message naming the wrong setting |
+| Server stopped while cameras were running | Their old sessions are closed and monitoring starts again automatically |
+| Live view loses its connection (Wi-Fi, server restart) | The page says so and **reconnects by itself** |
+| Slow computer or slow internet | Old pictures are skipped, never queued, so the live view never falls behind |
+| The backend is not running | The website says *"Cannot reach the backend server"* instead of a confusing error |
+| A page crashes in the browser | A recovery screen with a **Reload page** button instead of a blank page |
+
+To set up a new computer we wrote a **setup checker** (`python backend/doctor.py`). It checks everything the system needs (Python, packages, settings, folders, database, the model, video support, Node.js, free ports) and prints how to fix anything missing. The one-click start (`run.bat`) runs it automatically. All warnings and errors are also written to a **log file** (`backend/logs/app.log`), and the address **http://127.0.0.1:8000/api/health** shows at a glance whether the model, database, cameras and disk are fine.
 
 ---
 
@@ -461,7 +519,8 @@ The **frontend** is everything the user sees in the browser.
 | **Vite** | The tool that runs the website during development and builds it for release | Very fast; also forwards `/api` requests to the backend |
 | **Tailwind CSS** | A styling system (colours, spacing, fonts) | Fast, consistent design |
 | **React Router** | Moves between pages without reloading | Smooth navigation |
-| **Recharts** | Chart library | Dashboard bar chart and line chart |
+| **Recharts** | Chart library | Dashboard 24-hour activity chart |
+| **Canvas + WebSocket** | Browser drawing area fed by an always-open connection | Paints the live camera video smoothly, picture by picture |
 | **Lucide** | Clean outline icons | Simple, professional icons |
 | **Inter** | The font | Clear, modern, easy to read |
 
@@ -471,13 +530,15 @@ The **frontend** is everything the user sees in the browser.
 - Main colour: **dark green `#1F6F4A`** (farm/nature feel).
 - **Accessible:** text colours pass the international contrast standard (WCAG 4.5 : 1), every input has a label, and you can use the site with the keyboard.
 - **Responsive:** works on phones. The left menu turns into a menu button on small screens.
+- **Full width:** content fills the screen beside the menu; big screens show more cards per row instead of empty space.
+- **Click to open:** cameras are cards you click, not rows full of buttons.
 - Every page has proper **loading**, **empty** ("nothing here yet") and **error** messages.
 
 ---
 
 ## 13. Alerts: how the system decides something is wrong
 
-Alerts work at **herd level**, per camera. They look at **all cows seen by one camera** over a time window, not at one specific cow (we do not track individual cows yet).
+Alerts work at **herd level**, per camera. They look at **all cows seen by one camera** over a time window, not at one specific cow. (Cows are tracked with IDs, see 11.5, but alerts per cow are future work.)
 
 ### The three rules
 
@@ -496,7 +557,7 @@ AI models are not perfect, so we added safety checks:
 1. A rule is only checked when the camera has been watching for the **whole time window** (no alert 5 minutes after switching on).
 2. There must be at least **30 cow detections** in the window, i.e. cows must actually be visible. An empty barn or a dark night shouldn't cause alarms.
 3. For "no eating/drinking", the behaviour counts as "seen" only after **3 confident detections (≥ 50 %)**, so one lucky guess does not cancel a real problem.
-4. **No duplicate alerts:** if an alert is already open for that rule and camera, no new one is created.
+4. **No duplicate alerts:** if an alert is already open for that rule and camera, or one was raised within the same time window, no new one is created.
 
 Rules are checked **every minute** for every running camera.
 
@@ -513,12 +574,12 @@ Rules are checked **every minute** for every running camera.
 4. The photo is saved in the `uploads` folder.
 5. The photo goes into **YOLO11**. In a fraction of a second it returns, for each cow: a box, a behaviour and a confidence.
    - Only detections with confidence **≥ 35 %** are kept (to ignore weak guesses).
-6. **OpenCV** draws coloured boxes and labels on a copy of the photo.
+6. The cows are numbered **#1, #2, …** from left to right, and **OpenCV** draws coloured boxes with the number and behaviour on a copy of the photo.
 7. Every detection is saved in the **database** (`detections` table).
-8. The backend sends back the result. The **frontend** shows the annotated photo, a count per behaviour, and a table of detections.
-9. The detections now also appear in **Activity logs** and in the **Dashboard** charts.
+8. The backend sends back the result. The **frontend** shows the annotated photo, the number of cows, and a table of detections.
+9. The detections now also appear in **Activity logs**. (They do **not** change the Dashboard: an uploaded photo has no real "when it happened" time, so the Dashboard shows camera data only.)
 
-For a **camera**, steps 5–7 repeat every second automatically, and step 9 includes the alert check every minute.
+For a **camera**, steps 5–7 repeat automatically (the tracker keeps each cow's number from second to second), the results feed the Dashboard, and the alert rules are checked every minute.
 
 ---
 
@@ -547,6 +608,8 @@ For a **camera**, steps 5–7 repeat every second automatically, and step 9 incl
 | Dataset | **CBVD-5** (Scientific Reports, 2024) | Public, research-quality cow behaviour labels |
 | Data handling | **pandas, NumPy, scikit-learn** | Reading tables, maths, fair data splitting |
 | Images & video | **OpenCV** | Read photos/videos/cameras, draw boxes |
+| Tracking | **SciPy** (Hungarian algorithm) | Match each cow to its box in the next frame |
+| Live video | **WebSocket** | Stream the camera to the browser smoothly |
 | Backend | **FastAPI + Uvicorn** (Python) | Fast, modern web server |
 | Database | **SQLite + SQLAlchemy** | Simple one-file database |
 | Data checks | **Pydantic** | Rejects bad input automatically |
@@ -561,16 +624,18 @@ For a **camera**, steps 5–7 repeat every second automatically, and step 9 incl
 
 ## 17. How to run the project
 
-**What you need on the computer:** Python 3.10 or newer, and Node.js 20 or newer.
+**What you need on the computer:** Python 3.10 or newer, and Node.js 22 LTS (20.19+ also works).
 
 **Easiest way (Windows):** double-click **`run.bat`** in the project folder.
 It will:
 
-1. install all Python packages with `pip`,
-2. create the settings file `backend/.env` with a random secret key,
-3. copy the trained model to `backend/models/best.pt`,
-4. install the website packages with `npm`,
-5. open **two windows** (Backend and Frontend) and then open the browser.
+1. find a working Python 3.10+ (it skips the Microsoft Store placeholder),
+2. install all Python packages with `pip` (the first time this downloads PyTorch, which is large),
+3. create the settings file `backend/.env` with a random secret key,
+4. copy the trained model to `backend/models/best.pt`,
+5. install the website packages with `npm`,
+6. run the **setup checker** (`doctor.py`) and stop with clear instructions if something is wrong,
+7. open **two windows** (Backend and Frontend) and then open the browser.
 
 On Git Bash / Linux / Mac use **`./run.sh`** instead.
 
@@ -588,12 +653,17 @@ Then log in with **demo@farm.local** / **demo12345**. The demo farm *Green Valle
 |---|---|
 | http://localhost:5173 | The website |
 | http://127.0.0.1:8000/docs | The backend's automatic API documentation |
+| http://127.0.0.1:8000/api/health | Quick health check: model, database, cameras, disk |
+
+**To show live monitoring without a real camera:** go to **Cameras → Add camera**, choose **Recorded video**, and upload a barn video. Then click its card: monitoring starts and the live view plays the video in a loop with every cow boxed and numbered.
+
+**If something doesn't start:** run `python backend/doctor.py` and follow what it says, or look in `backend/logs/app.log`.
 
 ---
 
 ## 18. How we tested it
 
-- **14 automatic backend tests** (pytest). They check:
+- **47 automatic backend tests** (pytest). They check:
   - sign up, log in, wrong password, duplicate email;
   - one farm cannot see another farm's data;
   - members cannot do admin actions;
@@ -602,7 +672,13 @@ Then log in with **demo@farm.local** / **demo12345**. The demo farm *Green Valle
   - real image analysis with the trained model;
   - video processing in the background;
   - alert rules fire once and don't repeat;
-  - CSV export and dashboard numbers.
+  - CSV export and dashboard numbers (uploads don't count as live farm activity);
+  - tracking: cows keep their IDs while moving, a hidden cow keeps its ID for a few frames, one wrong label is smoothed away, flicker tracks don't count as cows;
+  - an older database gets the new cow-ID column automatically;
+  - cameras: each camera type is validated (YouTube links refused), a recorded video plays and loops, an uploaded or linked video runs as a live camera, an unreachable camera reports the error and keeps retrying, uploaded files are cleaned up;
+  - live view: no picture while stopped; while running, a smooth stream (20+ frames in a few seconds), boxes refreshed faster than once a second, session totals, and no access when logged out or from another farm;
+  - a recorded video waits for each frame's moment (plays at real speed), and tracking measures time, not number of frames;
+  - errors: a server bug returns a reference code, a busy database returns "try again", a wrong setting gives a readable message, and the health check reports every part.
 - **Browser test (Playwright)**: a robot clicked through the whole website like a real user, on desktop and phone sizes. It covered: sign up → create workspace → analyse a real barn photo → add/start/stop a camera → add an animal → alerts → activity log and CSV download → invite a team member → the member joins and sees only member actions. There were no errors.
 - **Code checks:** TypeScript type-checking and ESLint (a code-quality checker) pass with zero problems.
 
@@ -616,12 +692,13 @@ Being honest about limits is a strength in a viva. Say these clearly:
 |---|---|---|
 | Lying and rumination are often confused | Chewing is movement; one photo can't show movement | Two-model approach (posture + activity), and later a **video model** that looks at several frames |
 | Drinking is less accurate | Few drinking examples (class imbalance) | Collect more drinking examples; use extra weighting for rare classes |
-| No individual cow identity | We detect "a cow", not "cow #142" | **Tracking** (follow each cow across frames, e.g. ByteTrack) and later **re-identification** by coat pattern |
+| Cow IDs reset when a cow leaves the view | Tracking follows a cow only while it stays in view | **Re-identification** by coat pattern, so a cow keeps its ID across cameras and days |
 | All training data is from one barn | The dataset comes from one farm and its cameras | Test and fine-tune on footage from local Pakistani farms |
-| "Cows detected today" is the **largest number of cows in one frame**, not a unique count | Without tracking we can't tell if two detections are the same cow | Tracking (as above) |
+| "Cows detected today" is the **largest number of cows in one frame**, not a unique count | Track IDs restart when a cow comes back, so counting IDs would overcount | Re-identification (as above) |
 | No SMS/email alerts yet | Kept out of this version | Add SMS (e.g. Twilio) and email |
 | SQLite database grows quickly with many cameras | About one row per cow per second | Summarise old data, or move to PostgreSQL for big farms |
-| No live video preview on the website | Not in scope | Show the latest annotated frame per camera |
+| Opening a camera's live view switches monitoring on, and it stays on until someone presses Stop | Monitoring must keep running for alerts to work | A schedule (e.g. monitor only at night) or auto-stop for cameras nobody needs |
+| One server process | Cameras run as threads inside the API server, which is enough for one farm | Move camera workers to separate processes or machines for many cameras |
 
 ---
 
@@ -667,13 +744,22 @@ Passwords are hashed with bcrypt; login uses a signed token in an httpOnly cooki
 FastAPI is lighter and faster for an AI-serving API and fits naturally with the Python model. SQLite needs no separate database server, which suits a single-farm deployment and a student project. The data layer uses SQLAlchemy, so switching to MySQL or PostgreSQL later needs only a settings change. React gives a modern, responsive dashboard. *(Tip: update the SRS to match, or mention this decision to your supervisor.)*
 
 **Q14. Can it identify individual cows?**
-Not in this version. It detects behaviours of all cows in view. Individual identity needs tracking and re-identification, which is listed as future work.
+It **tracks** each cow while it is in view: every cow gets a number (#1, #2, …) that stays the same from frame to frame, so we can say "cow #3 was ruminating from 0:05 to 0:47". It does not know *which* cow it is (its name or tag), and a cow that leaves the view and comes back gets a new number. Knowing the actual cow needs re-identification, which is future work. See section 11.5 for how tracking works.
 
 **Q15. How fast is it?**
-About 5 ms per image on a GPU and about 60 ms per frame (≈ 16 fps) on a normal laptop CPU. Cameras are checked once per second, so one ordinary computer can handle several cameras.
+About 5 ms per image on a GPU and about 60 ms per frame (≈ 16 fps) on a normal laptop CPU. A camera nobody is watching is analysed once per second, so one ordinary computer can handle several cameras; while someone watches the live view, the boxes refresh up to 8 times a second (about 7 on our test laptop) and the video runs at full speed (25 fps).
 
 **Q16. What happens if the camera disconnects?**
-The camera's status changes to "Error" on the Cameras page, and the system keeps trying to reconnect every few seconds automatically.
+The camera's card on the Cameras page shows "Error" with the reason, and the system keeps trying to reconnect every 5 seconds automatically. If the *viewer's* connection drops instead, the live view page says so and reconnects by itself.
+
+**Q17. How does the live view stay smooth on a normal laptop?**
+Reading the camera and running the AI are two separate jobs. The reader keeps only the newest picture and sends it to the browser at the camera's own speed (up to 30 pictures a second). The AI updates the boxes as often as the computer can (up to 8 times a second). On a slow computer the boxes refresh less often, but the video itself never stutters or lags behind.
+
+**Q18. How do I watch a camera?**
+Open **Cameras** and click the camera's card. If it was off, monitoring switches on automatically and the live video appears. Press **Stop monitoring** on that page to switch it off.
+
+**Q19. How would you find a bug that a user reports?**
+Every error message the user sees has a short **reference code**. The same code is written in `backend/logs/app.log` next to the full technical details, so we can find the exact problem. The health page and `doctor.py` check the rest of the system.
 
 ---
 
@@ -702,6 +788,9 @@ The camera's status changes to "Error" on the Cameras page, and the system keeps
 | **F1 score** | A balance of precision and recall |
 | **Fine-tuning** | Further training an already-trained model on a new task |
 | **Frame** | One single picture from a video |
+| **FPS (frames per second)** | How many pictures a video shows each second (smooth video is 25–30) |
+| **Health check** | A web address that reports whether every part of the system is working |
+| **Hungarian algorithm** | A classic method for pairing two lists in the best way (here: old cows with new boxes) |
 | **Frontend** | The part of the website the user sees and clicks |
 | **GPU** | A powerful graphics card that makes AI training much faster |
 | **Hashing** | One-way scrambling (used for passwords) |
@@ -719,13 +808,16 @@ The camera's status changes to "Error" on the Cameras page, and the system keeps
 | **Recall** | Of all real X, how many the model found |
 | **Rumination** | A cow chewing the cud (bringing food back up and chewing it again), a sign of healthy digestion |
 | **RTSP** | The standard way CCTV/IP cameras stream live video |
+| **Snapshot** | The newest single picture from a camera (used on the camera cards) |
+| **Tracking / track ID** | Following each cow from frame to frame and giving it a number (#1, #2, …) |
 | **Test set** | Pictures kept hidden until the end, to measure real performance |
 | **Thread / worker** | A separate helper inside the program that does a job in the background |
 | **Training set** | Pictures the model learns from |
 | **Validation set** | Pictures used during training to choose the best version |
+| **WebSocket** | A browser–server connection that stays open, so the server can keep sending live video |
 | **Workspace** | One farm/team inside the system, with its own members and data |
 | **YOLO** | "You Only Look Once", a fast object-detection model family |
 
 ---
 
-*Project files to show in a demo:* `Notebook/Notebook.ipynb` (training), `Notebook/model/best.pt` (trained model), `backend/` (server), `frontend/` (website), `README.md` (technical specification), `run.bat` (one-click start).
+*Project files to show in a demo:* `Notebook/Notebook.ipynb` (training), `Notebook/model/best.pt` (trained model), `backend/` (server), `backend/app/services/tracker.py` (cow tracking), `backend/doctor.py` (setup checker), `frontend/` (website), `README.md` (technical specification), `Explain.md` (this file), `run.bat` (one-click start).

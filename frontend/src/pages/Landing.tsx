@@ -61,6 +61,7 @@ const FEATURES = [
 
 // Shared building blocks (local to this page)
 const CONTAINER = 'mx-auto w-full max-w-[1120px] px-4 sm:px-6'
+const HEADER_ROW = 'w-full px-4 sm:px-6 lg:px-10' // header spans the full window width
 const SECTION = 'py-16 md:py-24'
 const H2 = 'text-[28px] leading-[1.25] font-semibold tracking-[-0.01em]'
 const BTN = 'inline-flex h-11 items-center justify-center rounded-md px-5 text-base font-medium whitespace-nowrap transition-colors'
@@ -88,7 +89,7 @@ function Header() {
 
   return (
     <header className="border-b border-line bg-surface">
-      <div className={`${CONTAINER} flex h-16 items-center justify-between gap-6`}>
+      <div className={`${HEADER_ROW} flex h-16 items-center justify-between gap-6`}>
         <Link to="/" className="text-lg font-semibold text-ink">
           FarmWatch
         </Link>
@@ -130,7 +131,7 @@ function Header() {
 
       {open && (
         <nav id="mobile-menu" aria-label="Main" className="border-t border-line md:hidden">
-          <ul className={`${CONTAINER} flex flex-col py-2`}>
+          <ul className={`${HEADER_ROW} flex flex-col py-2`}>
             {NAV_LINKS.map((l) => (
               <li key={l.href}>
                 <a href={l.href} onClick={close} className="block py-3 text-ink">

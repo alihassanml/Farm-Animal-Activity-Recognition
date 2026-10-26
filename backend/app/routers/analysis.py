@@ -9,14 +9,17 @@ from sqlalchemy.orm import Session
 from ..auth import Access, get_current_user, get_owned, workspace_member
 from ..database import get_db
 from ..models import Analysis, Detection, User, utcnow
-from ..schemas import AnalysisDetail, AnalysisOut, DetectionOut
+from ..schemas import AnalysisDetail, AnalysisOut, CowSummary, DetectionOut
 from ..services import video_worker
 from ..services.detector import annotate, get_detector
-from ..services.storage import IMAGE_EXT, VIDEO_EXT, add_detections, save_upload
+from ..services.sources import SourceError, probe_video
+from ..services.storage import IMAGE_EXT, VIDEO_EXT, add_detections, remove_file, save_upload
+from ..services.tracker import CONFIRMED_AFTER, number_cows
 
 router = APIRouter(tags=["analysis"])
 
 DETAIL_DETECTION_LIMIT = 500
+DETAIL_COW_LIMIT = 200
 
 
 def _out(a: Analysis) -> AnalysisOut:
@@ -36,14 +39,52 @@ def _detail(db: Session, a: Analysis) -> AnalysisDetail:
     dets = db.scalars(
         select(Detection)
         .where(Detection.analysis_id == a.id)
-        .order_by(Detection.frame_index, Detection.id)
+        .order_by(Detection.frame_index, Detection.track_id, Detection.id)
         .limit(DETAIL_DETECTION_LIMIT)
     ).all()
+    cows = _cows(db, a)
     return AnalysisDetail(
         **_out(a).model_dump(),
         behaviour_counts=counts,
+        cow_count=len(cows),
+        cows=cows[:DETAIL_COW_LIMIT],
         detections=[DetectionOut.model_validate(d) for d in dets],
     )
+
+
+def _cows(db: Session, a: Analysis) -> list[CowSummary]:
+    """Per-cow summary from the tracker's IDs, most-seen cows first. On images every box is a cow;
+    on videos and cameras a cow counts once it was tracked in CONFIRMED_AFTER frames."""
+    min_detections = 1 if a.type == "image" else CONFIRMED_AFTER
+    rows = db.execute(
+        select(
+            Detection.track_id,
+            Detection.behaviour,
+            func.count(Detection.id),
+            func.min(Detection.frame_time),
+            func.max(Detection.frame_time),
+        )
+        .where(Detection.analysis_id == a.id, Detection.track_id.is_not(None))
+        .group_by(Detection.track_id, Detection.behaviour)
+    ).all()
+    cows: dict[int, dict] = {}
+    for track_id, behaviour, n, first, last in rows:
+        c = cows.setdefault(track_id, {"first_seen": first, "last_seen": last, "counts": {}})
+        c["counts"][behaviour] = n
+        c["first_seen"], c["last_seen"] = min(c["first_seen"], first), max(c["last_seen"], last)
+    out = [
+        CowSummary(
+            track_id=track_id,
+            first_seen=c["first_seen"],
+            last_seen=c["last_seen"],
+            detections=sum(c["counts"].values()),
+            behaviour_counts=c["counts"],
+            main_behaviour=max(c["counts"], key=c["counts"].get),
+        )
+        for track_id, c in cows.items()
+        if sum(c["counts"].values()) >= min_detections
+    ]
+    return sorted(out, key=lambda c: (-c.detections, c.track_id))
 
 
 def _require_model():
@@ -61,8 +102,8 @@ def analyze_image(
     path = save_upload(file, access.workspace.id, IMAGE_EXT)
     frame = cv2.imread(str(path))
     if frame is None:
-        path.unlink(missing_ok=True)
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Could not read the image")
+        remove_file(path)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Could not read the image. Try a JPG or PNG file")
     a = Analysis(
         workspace_id=access.workspace.id,
         user_id=access.user.id,
@@ -71,14 +112,21 @@ def analyze_image(
         file_path=str(path),
         status="processing",
     )
-    db.add(a)
-    db.flush()
-    dets = detector.detect(frame)
     result = path.with_name(path.stem + "_result.jpg")
-    cv2.imwrite(str(result), annotate(frame, dets))
-    add_detections(db, a, dets, 0, a.created_at)
-    a.result_path, a.status, a.progress, a.finished_at = str(result), "done", 100.0, utcnow()
-    db.commit()
+    try:
+        db.add(a)
+        db.flush()
+        dets = number_cows(detector.detect(frame))
+        if not cv2.imwrite(str(result), annotate(frame, dets)):
+            raise OSError(f"Could not write {result}")
+        add_detections(db, a, dets, 0, a.created_at)
+        a.result_path, a.status, a.progress, a.finished_at = str(result), "done", 100.0, utcnow()
+        db.commit()
+    except Exception:  # leave no half-saved analysis or orphan files; the error handler logs it
+        db.rollback()
+        remove_file(path)
+        remove_file(result)
+        raise
     return _detail(db, a)
 
 
@@ -88,6 +136,11 @@ def analyze_video(
 ):
     _require_model()
     path = save_upload(file, access.workspace.id, VIDEO_EXT)
+    try:
+        probe_video(str(path))  # reject unplayable files now instead of failing in the background
+    except SourceError:
+        remove_file(path)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Could not read this video. Try an MP4 (H.264) file")
     a = Analysis(
         workspace_id=access.workspace.id,
         user_id=access.user.id,

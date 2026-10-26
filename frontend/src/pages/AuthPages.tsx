@@ -36,9 +36,7 @@ function AuthShell({ title, subtitle, children, footer }: { title: string; subti
           <ul className="mt-8 flex flex-col gap-4">
             {POINTS.map((p) => (
               <li key={p} className="flex items-start gap-3 text-forest-muted">
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-forest-accent text-forest">
-                  <Check className="size-3" strokeWidth={3} aria-hidden />
-                </span>
+                <Check className="mt-0.5 size-4 shrink-0 text-forest-accent" strokeWidth={3} aria-hidden />
                 {p}
               </li>
             ))}

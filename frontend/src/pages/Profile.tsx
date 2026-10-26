@@ -11,7 +11,7 @@ type Msg = { tone: 'success' | 'danger'; text: string } | null
 
 export default function Profile() {
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="grid items-start gap-6 xl:grid-cols-2">
       <Details />
       <Password />
     </div>

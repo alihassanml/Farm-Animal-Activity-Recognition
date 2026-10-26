@@ -52,8 +52,16 @@ export async function api<T>(path: string, { method = 'GET', body, form, signal 
   if (!res.ok) {
     if (res.status === 401 && path !== '/auth/me' && onUnauthorized) onUnauthorized()
     const detail = (data as { detail?: unknown } | undefined)?.detail
+    // The backend always answers errors with JSON; an empty 5xx comes from the dev proxy when the
+    // backend isn't running (or crashed during the request).
     const message =
-      typeof detail === 'string' ? detail : res.status >= 500 ? 'Something went wrong on the server.' : 'Request failed.'
+      typeof detail === 'string'
+        ? detail
+        : res.status >= 500 && !text
+          ? 'Cannot reach the backend server. Check that it is running (see the Backend window or backend/logs/app.log).'
+          : res.status >= 500
+            ? 'Something went wrong on the server.'
+            : 'Request failed.'
     throw new ApiError(res.status, message)
   }
   return data as T

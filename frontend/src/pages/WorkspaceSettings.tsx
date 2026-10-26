@@ -2,8 +2,9 @@ import { Check, Copy, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { errorMessage } from '../api/client'
-import { inviteApi, workspaceApi } from '../api/endpoints'
+import { dashboardApi, inviteApi, workspaceApi } from '../api/endpoints'
 import type { Invite, Member, Role } from '../api/types'
+import { SetupChecklist } from '../components/SetupChecklist'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
@@ -20,17 +21,22 @@ const inviteLink = (token: string) => `${window.location.origin}/invite/${token}
 
 export default function WorkspaceSettings() {
   const { isAdmin } = useWorkspace()
+  const { workspace } = useWorkspace()
   const invites = useAsyncInvites(isAdmin)
+  const summary = useAsync(() => dashboardApi.summary(workspace.id), [workspace.id])
   return (
     <div className="flex flex-col gap-6">
-      <General />
+      {summary.data && <SetupChecklist key={workspace.id} data={summary.data} />}
+      <div className={`grid gap-6 ${isAdmin ? 'xl:grid-cols-2' : ''}`}>
+        <General />
+        {isAdmin && (
+          <div id="invite" className="scroll-mt-20">
+            <InviteForm onCreated={invites.reload} />
+          </div>
+        )}
+      </div>
       <Members />
-      {isAdmin && (
-        <>
-          <InviteForm onCreated={invites.reload} />
-          <PendingInvites state={invites} />
-        </>
-      )}
+      {isAdmin && <PendingInvites state={invites} />}
     </div>
   )
 }
@@ -63,7 +69,7 @@ function General() {
   }
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader title="General" />
       <CardBody>
         {isAdmin ? (
@@ -288,7 +294,7 @@ function InviteForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader title="Invite people" description="Create an invite link and send it yourself. Links expire after 7 days and only work for the email you enter." />
       <CardBody className="flex flex-col gap-4">
         <form onSubmit={submit} className="grid items-end gap-4 sm:grid-cols-[1fr_180px_auto]">

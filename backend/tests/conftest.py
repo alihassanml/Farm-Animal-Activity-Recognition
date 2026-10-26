@@ -16,6 +16,7 @@ os.environ.update(
     MODEL_MODE="single",
     MODEL_PATH=str(BACKEND / "models" / "best.pt"),
     ALERT_CHECK_SECONDS="3600",
+    LOG_DIR=str(_TMP / "logs"),
 )
 
 from fastapi.testclient import TestClient  # noqa: E402

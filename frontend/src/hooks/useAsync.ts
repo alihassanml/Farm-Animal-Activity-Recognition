@@ -50,7 +50,7 @@ export function useAsync<T>(fn: () => Promise<T>, deps: readonly unknown[]) {
   }
 }
 
-/** Calls `callback` every `ms` milliseconds; pass null to pause. */
+/** Calls `callback` every `ms` milliseconds while the tab is visible; pass null to pause. */
 export function useInterval(callback: () => void, ms: number | null) {
   const ref = useRef(callback)
   useEffect(() => {
@@ -58,7 +58,16 @@ export function useInterval(callback: () => void, ms: number | null) {
   })
   useEffect(() => {
     if (ms === null) return
-    const id = window.setInterval(() => ref.current(), ms)
-    return () => window.clearInterval(id)
+    const id = window.setInterval(() => {
+      if (!document.hidden) ref.current() // no polling from background tabs
+    }, ms)
+    const onVisible = () => {
+      if (!document.hidden) ref.current() // catch up as soon as the tab is shown again
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [ms])
 }
