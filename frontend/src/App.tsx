@@ -12,21 +12,29 @@ import Animals from './pages/Animals'
 import { Login, Signup } from './pages/AuthPages'
 import CameraLive from './pages/CameraLive'
 import Cameras from './pages/Cameras'
-import Landing from './pages/Landing'
 import NotFound from './pages/NotFound'
 import Onboarding, { AppHome } from './pages/Onboarding'
 import Profile from './pages/Profile'
 import WorkspaceSettings from './pages/WorkspaceSettings'
 
-// Charts (recharts) are only needed on the dashboard, so load that page on demand.
+// Charts (recharts) are only needed on the dashboard, and the animation library only on the
+// landing page, so both pages load on demand.
 const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Landing = lazy(() => import('./pages/Landing'))
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route
+            path="/"
+            element={
+              <Suspense fallback={<Loading className="min-h-dvh" />}>
+                <Landing />
+              </Suspense>
+            }
+          />
           <Route path="/invite/:token" element={<AcceptInvite />} />
 
           <Route element={<GuestOnly />}>

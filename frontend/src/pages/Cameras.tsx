@@ -5,9 +5,9 @@ import { errorMessage } from '../api/client'
 import { cameraApi } from '../api/endpoints'
 import type { Camera, CameraKind } from '../api/types'
 import { ModelStatus } from '../components/ModelStatus'
-import { Badge } from '../components/ui/Badge'
+import { StatusDot } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
-import { Card, PageToolbar } from '../components/ui/Card'
+import { Card, PageHeader } from '../components/ui/Card'
 import { Input, Select } from '../components/ui/Field'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState, ErrorState, Loading, Notice } from '../components/ui/States'
@@ -24,8 +24,8 @@ export default function Cameras() {
 
   return (
     <div>
-      <ModelStatus />
-      <PageToolbar
+      <PageHeader
+        title="Cameras"
         description="Click a camera to watch it live with every cow labelled. A recorded video can stand in for a camera: it plays in a loop as if it were live."
         actions={
           isAdmin && (
@@ -35,6 +35,7 @@ export default function Cameras() {
           )
         }
       />
+      <ModelStatus />
 
       {loading ? (
         <Loading />
@@ -52,7 +53,7 @@ export default function Cameras() {
           />
         </Card>
       ) : (
-        <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {data.map((c) => (
             <li key={c.id}>
               <CameraCard camera={c} />
@@ -83,15 +84,18 @@ function CameraCard({ camera: c }: { camera: Camera }) {
     <Link
       to={path(`cameras/${c.id}`)}
       aria-label={`Open live view of ${c.name}`}
-      className="group block h-full overflow-hidden rounded-lg border border-line bg-surface shadow-card transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-md"
+      className="block h-full overflow-hidden rounded-md border border-line bg-surface transition-colors duration-150 hover:border-line-strong"
     >
       <CameraPreview camera={c} />
-      <div className="flex items-start justify-between gap-3 px-4 py-3">
+      <div className="flex items-start justify-between gap-4 border-t border-line px-4 py-3">
         <div className="min-w-0">
-          <p className="truncate font-medium group-hover:text-primary">{c.name}</p>
-          <p className="truncate text-sm text-muted">{c.location ?? KIND_LABEL[c.kind]}</p>
+          <p className="truncate text-sm font-medium text-ink">{c.name}</p>
+          <p className="truncate text-xs text-muted">{c.location ?? KIND_LABEL[c.kind]}</p>
         </div>
-        <Badge tone={status.tone}>{status.label}</Badge>
+        <span className="flex shrink-0 items-center gap-2 text-xs text-secondary">
+          <StatusDot tone={status.tone} />
+          {status.label}
+        </span>
       </div>
     </Link>
   )
@@ -141,19 +145,19 @@ function CameraPreview({ camera: c }: { camera: Camera }) {
   else if (running) placeholder = { icon: Loader2, text: 'Starting the live view', spin: true }
   else placeholder = { icon: VideoOff, text: 'Monitoring is off' }
   const Icon = placeholder.icon
-  const tone = placeholder.danger ? 'text-[#ffb4a8]' : 'text-white/70'
+  const iconTone = placeholder.danger ? 'text-critical' : 'text-faint'
 
   return (
-    <div className="relative aspect-video overflow-hidden bg-ink">
+    <div className={`relative aspect-video overflow-hidden ${running && src ? 'bg-ink' : 'bg-surface-alt'}`}>
       {running && src ? (
         <>
           <img src={src} alt={`Latest frame from ${c.name}`} className="size-full object-cover" />
-          <span className="absolute top-2 left-2 rounded-md bg-black/60 px-2 py-0.5 text-xs font-semibold tracking-wide text-white">LIVE</span>
+          <span className="numeric absolute top-2 left-2 rounded-sm bg-black/60 px-2 py-1 text-xs text-white">LIVE</span>
         </>
       ) : (
         <div className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center">
-          <Icon className={`size-7 ${tone} ${placeholder.spin ? 'animate-spin' : ''}`} aria-hidden />
-          <p className={`line-clamp-2 text-sm ${tone}`}>{placeholder.text}</p>
+          <Icon className={`size-5 ${iconTone} ${placeholder.spin ? 'animate-spin' : ''}`} strokeWidth={1.75} aria-hidden />
+          <p className="line-clamp-2 text-xs text-secondary">{placeholder.text}</p>
         </div>
       )}
     </div>
@@ -258,7 +262,7 @@ export function CameraForm({ camera, onClose, onSaved }: { camera: Camera | null
         {kind === 'video' && (
           <>
             <fieldset className="flex flex-col gap-2">
-              <legend className="mb-1.5 text-sm font-medium text-ink">Video from</legend>
+              <legend className="mb-2 text-sm font-medium text-ink">Video from</legend>
               <div className="flex flex-wrap gap-x-6 gap-y-2">
                 {(
                   [
@@ -266,14 +270,14 @@ export function CameraForm({ camera, onClose, onSaved }: { camera: Camera | null
                     ['file', 'A file from this computer'],
                   ] as const
                 ).map(([value, label]) => (
-                  <label key={value} className="flex cursor-pointer items-center gap-2 text-[15px]">
+                  <label key={value} className="flex cursor-pointer items-center gap-2 text-sm text-ink">
                     <input
                       type="radio"
                       name="video-from"
                       value={value}
                       checked={videoFrom === value}
                       onChange={() => setVideoFrom(value)}
-                      className="size-4 accent-primary"
+                      className="size-4 accent-ink"
                     />
                     {label}
                   </label>
@@ -305,7 +309,7 @@ export function CameraForm({ camera, onClose, onSaved }: { camera: Camera | null
 function FilePicker({ file, onChange, current }: { file: File | null; onChange: (f: File | null) => void; current: string | null }) {
   const id = useId()
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       <label htmlFor={id} className="text-sm font-medium text-ink">
         Video file
       </label>
@@ -315,9 +319,9 @@ function FilePicker({ file, onChange, current }: { file: File | null; onChange: 
         accept={VIDEO_ACCEPT}
         aria-describedby={`${id}-hint`}
         onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-        className="block w-full text-sm text-muted file:mr-3 file:h-9 file:cursor-pointer file:rounded-md file:border file:border-line-strong file:bg-surface file:px-3 file:text-sm file:font-medium file:text-ink hover:file:bg-page"
+        className="block w-full text-sm text-muted file:mr-3 file:h-9 file:cursor-pointer file:rounded-sm file:border file:border-line file:bg-surface file:px-3 file:text-sm file:font-medium file:text-ink hover:file:bg-surface-alt"
       />
-      <p id={`${id}-hint`} className="text-sm text-muted">
+      <p id={`${id}-hint`} className="text-xs text-muted">
         {file
           ? `${(file.size / 1024 / 1024).toFixed(1)} MB. The file is uploaded to the server when you save.`
           : current

@@ -7,12 +7,13 @@ import type { LiveSession, LiveStatus } from '../api/types'
 import { ModelStatus } from '../components/ModelStatus'
 import { Badge, BehaviourBadge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
-import { Card, CardBody, CardHeader } from '../components/ui/Card'
+import { Card, CardBody, CardHeader, PageHeader } from '../components/ui/Card'
+import { CompositionBar } from '../components/ui/DataViz'
 import { EmptyState, ErrorState, Loading, Notice } from '../components/ui/States'
 import { useWorkspace } from '../context/workspace'
 import { useAsync } from '../hooks/useAsync'
 import { useLiveStream, type LiveConnection } from '../hooks/useLiveStream'
-import { BEHAVIOUR_COLOR, BEHAVIOUR_LABEL, BEHAVIOURS } from '../lib/behaviour'
+import { BEHAVIOUR_LABEL, BEHAVIOURS } from '../lib/behaviour'
 import { CAMERA_STATUS, KIND_LABEL, sourceText } from '../lib/camera'
 import { CameraForm, ConfirmDelete } from './Cameras'
 import { formatDuration, formatNumber, formatPercent, secondsSince } from '../lib/format'
@@ -78,51 +79,58 @@ export default function CameraLive() {
   const status = CAMERA_STATUS[live.status]
 
   return (
-    <div className="flex flex-col gap-6">
-      <ModelStatus />
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <Link to={path('cameras')} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+    <div>
+      <PageHeader
+        eyebrow={
+          <Link to={path('cameras')} className="inline-flex items-center gap-1 text-sm text-secondary transition-colors duration-150 hover:text-ink">
             <ArrowLeft className="size-3.5" aria-hidden /> All cameras
           </Link>
-          <h2 className="mt-2 flex flex-wrap items-center gap-3 text-[22px] tracking-[-0.01em]">
-            <span className="truncate">{camera.name}</span>
+        }
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            <span className="min-w-0 truncate">{camera.name}</span>
             <Badge tone={status.tone}>{status.label}</Badge>
-          </h2>
-          <p className="mt-1 truncate text-sm text-muted">
-            {KIND_LABEL[camera.kind]}: {sourceText(camera)}
+          </span>
+        }
+        description={
+          <span className="block truncate text-sm">
+            {KIND_LABEL[camera.kind]}: <span className="numeric">{sourceText(camera)}</span>
             {camera.location && `, ${camera.location}`}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {isAdmin && (
-            <>
-              <Button variant="secondary" icon={<Pencil className="size-3.5" aria-hidden />} onClick={() => setEditing(true)}>
-                Edit
-              </Button>
-              <Button variant="danger" icon={<Trash2 className="size-3.5" aria-hidden />} onClick={() => setDeleting(true)}>
-                Delete
-              </Button>
-            </>
-          )}
-          <Button
-            variant={live.active ? 'secondary' : 'primary'}
-            icon={live.active ? <Square className="size-3.5" aria-hidden /> : <Play className="size-3.5" aria-hidden />}
-            loading={busy}
-            onClick={() => toggle(!live.active)}
-          >
-            {live.active ? 'Stop monitoring' : 'Start monitoring'}
-          </Button>
-        </div>
-      </div>
+          </span>
+        }
+        actions={
+          <>
+            {isAdmin && (
+              <>
+                <Button variant="secondary" icon={<Pencil className="size-3.5" aria-hidden />} onClick={() => setEditing(true)}>
+                  Edit
+                </Button>
+                <Button variant="danger" icon={<Trash2 className="size-3.5" aria-hidden />} onClick={() => setDeleting(true)}>
+                  Delete
+                </Button>
+              </>
+            )}
+            <Button
+              variant={live.active ? 'secondary' : 'primary'}
+              icon={live.active ? <Square className="size-3.5" aria-hidden /> : <Play className="size-3.5" aria-hidden />}
+              loading={busy}
+              onClick={() => toggle(!live.active)}
+            >
+              {live.active ? 'Stop monitoring' : 'Start monitoring'}
+            </Button>
+          </>
+        }
+      />
+      <div className="flex flex-col gap-6">
+      <ModelStatus />
       {actionError && <Notice>{actionError}</Notice>}
       <ConnectionNotice connection={stream.connection} />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card className="min-w-0 self-start">
           <CardHeader title="Live view" description="Every cow is boxed with its number and behaviour. A cow keeps its number while it stays in view." />
-          <CardBody className="flex flex-col gap-3">
-            <div className={`relative overflow-hidden rounded-md border border-line bg-ink ${live.active ? '' : 'hidden'}`}>
+          <CardBody className="flex flex-col gap-4">
+            <div className={`relative overflow-hidden rounded-sm bg-ink ${live.active ? '' : 'hidden'}`}>
               <canvas
                 ref={canvasRef}
                 role="img"
@@ -165,6 +173,7 @@ export default function CameraLive() {
         />
       )}
       <ConfirmDelete camera={deleting ? camera : null} onClose={() => setDeleting(false)} onDeleted={() => navigate(path('cameras'))} />
+      </div>
     </div>
   )
 }
@@ -190,10 +199,8 @@ function ConnectionNotice({ connection }: { connection: LiveConnection }) {
 /** Messages shown on top of the video area while there is nothing (new) to show. */
 function VideoOverlay({ live, hasFrame }: { live: LiveStatus; hasFrame: boolean }) {
   let message: string | null = null
-  let tone = 'text-white'
   if (live.status === 'error') {
     message = live.last_error ?? 'The camera can’t be read.'
-    tone = 'text-[#ffb4a8]'
   } else if (live.status === 'connecting') {
     message = 'Connecting to the camera'
   } else if (!hasFrame) {
@@ -202,7 +209,7 @@ function VideoOverlay({ live, hasFrame }: { live: LiveStatus; hasFrame: boolean 
   if (!message) return null
   return (
     <div className={`absolute inset-0 flex items-center justify-center p-6 text-center ${hasFrame ? 'bg-ink/60' : ''}`} role="status">
-      <p className={`max-w-md text-sm font-medium ${tone}`}>{message}</p>
+      <p className="max-w-narrow text-sm font-medium text-white">{message}</p>
     </div>
   )
 }
@@ -214,14 +221,14 @@ function StreamFooter({ live }: { live: LiveStatus }) {
       <p className="text-muted">
         {running ? (
           <>
-            Video <span className="font-medium text-ink tabular-nums">{Math.round(live.stream_fps)}</span> fps, boxes updated{' '}
-            <span className="font-medium text-ink tabular-nums">{Math.round(live.detect_fps)}</span> times a second
+            Video <span className="font-medium text-ink numeric">{Math.round(live.stream_fps)}</span> fps, boxes updated{' '}
+            <span className="font-medium text-ink numeric">{Math.round(live.detect_fps)}</span> times a second
           </>
         ) : (
           'Waiting for video'
         )}
       </p>
-      <ul className="flex flex-wrap gap-1.5" aria-label="Box colours">
+      <ul className="flex flex-wrap gap-x-4 gap-y-2" aria-label="Box colours">
         {BEHAVIOURS.map((b) => (
           <li key={b}>
             <BehaviourBadge behaviour={b} />
@@ -238,19 +245,19 @@ function InView({ live }: { live: LiveStatus }) {
     <Card>
       <CardHeader title="In view now" description="Cows the model sees at this moment" />
       <CardBody>
-        <p className="text-[30px] leading-none font-semibold tabular-nums">{cows.length}</p>
-        <p className="mt-1 text-sm text-muted">{cows.length === 1 ? 'cow' : 'cows'} in view</p>
+        <p className="numeric text-metric text-ink">{cows.length}</p>
+        <p className="mt-2 text-sm text-muted">{cows.length === 1 ? 'cow' : 'cows'} in view</p>
       </CardBody>
       {cows.length > 0 && (
-        <ul className="divide-y divide-line border-t border-line">
+        <ul className="border-t border-line">
           {cows.map((c, i) => (
-            <li key={c.track_id ?? `x${i}`} className="flex items-center gap-3 px-5 py-2.5 text-sm">
-              <span className="w-10 font-medium tabular-nums">{c.track_id ? `#${c.track_id}` : '—'}</span>
+            <li key={c.track_id ?? `x${i}`} className="flex items-center gap-3 border-b border-line px-6 py-3 text-sm last:border-b-0">
+              <span className="numeric w-12 text-ink">{c.track_id ? `#${c.track_id}` : '—'}</span>
               <span className="flex-1">
                 <BehaviourBadge behaviour={c.behaviour} />
                 {c.posture && c.state && <span className="ml-2 text-muted">({c.posture})</span>}
               </span>
-              <span className="text-muted tabular-nums">{formatPercent(c.confidence)}</span>
+              <span className="text-muted numeric">{formatPercent(c.confidence)}</span>
             </li>
           ))}
         </ul>
@@ -271,36 +278,31 @@ function SessionCard({ session, activityLink }: { session: LiveSession; activity
         <dl className="grid grid-cols-2 gap-4">
           <div>
             <dt className="text-sm text-muted">Cows tracked</dt>
-            <dd className="text-xl font-semibold tabular-nums">{formatNumber(session.cows_tracked)}</dd>
+            <dd className="numeric mt-1 text-h3 font-medium">{formatNumber(session.cows_tracked)}</dd>
           </div>
           <div>
             <dt className="text-sm text-muted">Detections saved</dt>
-            <dd className="text-xl font-semibold tabular-nums">{formatNumber(session.detections)}</dd>
+            <dd className="numeric mt-1 text-h3 font-medium">{formatNumber(session.detections)}</dd>
           </div>
         </dl>
         {total > 0 && (
           <div>
-            <div
-              className="flex h-2.5 gap-0.5 overflow-hidden rounded-full"
-              role="img"
-              aria-label={parts.map((p) => `${BEHAVIOUR_LABEL[p.b]} ${Math.round((p.n / total) * 100)}%`).join(', ')}
-            >
-              {parts.map((p) => (
-                <div key={p.b} style={{ width: `${(p.n / total) * 100}%`, backgroundColor: BEHAVIOUR_COLOR[p.b] }} />
-              ))}
-            </div>
-            <ul className="mt-3 flex flex-col gap-1.5">
+            <CompositionBar
+              parts={parts}
+              label={parts.map((p) => `${BEHAVIOUR_LABEL[p.b]} ${Math.round((p.n / total) * 100)}%`).join(', ')}
+            />
+            <ul className="mt-3 flex flex-col gap-2">
               {parts.map((p) => (
                 <li key={p.b} className="flex items-center justify-between text-sm">
                   <BehaviourBadge behaviour={p.b} />
-                  <span className="text-muted tabular-nums">{Math.round((p.n / total) * 100)}%</span>
+                  <span className="text-muted numeric">{Math.round((p.n / total) * 100)}%</span>
                 </li>
               ))}
             </ul>
           </div>
         )}
         {activityLink && (
-          <Link to={activityLink} className="text-sm font-medium text-primary hover:underline">
+          <Link to={activityLink} className="link text-sm">
             See every detection in the activity log
           </Link>
         )}

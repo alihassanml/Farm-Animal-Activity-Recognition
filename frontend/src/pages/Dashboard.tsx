@@ -1,11 +1,12 @@
-import { ArrowRight, Bell, Cctv, PawPrint, ScanSearch, Video } from 'lucide-react'
+import { ArrowRight, Bell, ScanSearch, Video } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { cameraApi, dashboardApi } from '../api/endpoints'
 import type { Alert, Camera, DashboardSummary } from '../api/types'
-import { Badge, BehaviourBadge } from '../components/ui/Badge'
+import { Badge, BehaviourBadge, StatusDot, Swatch } from '../components/ui/Badge'
 import { ButtonLink } from '../components/ui/Button'
-import { Card, CardBody, CardHeader } from '../components/ui/Card'
+import { Card, CardBody, CardHeader, PageHeader } from '../components/ui/Card'
+import { CompositionBar, ShareBar, Sparkline } from '../components/ui/DataViz'
 import { EmptyState, ErrorState, Loading } from '../components/ui/States'
 import { StatCard } from '../components/ui/StatCard'
 import { useAuth } from '../context/auth'
@@ -15,8 +16,18 @@ import { BEHAVIOUR_COLOR, BEHAVIOUR_LABEL, BEHAVIOURS } from '../lib/behaviour'
 import { KIND_LABEL } from '../lib/camera'
 import { formatHour, formatNumber, formatRelative } from '../lib/format'
 
-const AXIS = { fontSize: 12, fill: '#5f6762' }
-const TOOLTIP_STYLE = { borderRadius: 8, border: '1px solid #e3e6e4', fontSize: 13, boxShadow: '0 8px 24px -8px rgb(16 24 20 / 0.15)' }
+// Chart styling from tokens: muted mono ticks, thin gray gridlines, flat tooltip.
+const AXIS = { fontSize: 13, fill: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }
+const TOOLTIP_STYLE = {
+  borderRadius: 'var(--radius-sm)',
+  border: '1px solid var(--color-line)',
+  boxShadow: 'var(--shadow-overlay)',
+  fontSize: 13,
+  padding: 'var(--space-3)',
+}
+const TOOLTIP_ITEM = { fontFamily: 'var(--font-mono)', color: 'var(--color-ink)', padding: 0 }
+const TOOLTIP_LABEL = { color: 'var(--color-muted)', fontFamily: 'var(--font-mono)', marginBottom: 'var(--space-1)' }
+const LINK = 'inline-flex items-center gap-1 text-sm text-secondary transition-colors duration-150 hover:text-ink'
 
 function greeting() {
   const h = new Date().getHours()
@@ -42,36 +53,37 @@ export default function Dashboard() {
   const totalToday = BEHAVIOURS.reduce((n, b) => n + data.behaviour_counts[b], 0)
   const firstName = me?.user.name.split(' ')[0] ?? ''
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-[24px] tracking-[-0.01em]">
-            {greeting()}
-            {firstName && `, ${firstName}`}
-          </h2>
-          <p className="mt-1 text-muted">Here’s how the herd at {workspace.name} is doing today.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <ButtonLink to={path('cameras')} variant="secondary" size="sm">
-            <Video className="size-4" aria-hidden />
-            Cameras
-          </ButtonLink>
-          <ButtonLink to={path('analyze')} size="sm">
-            <ScanSearch className="size-4" aria-hidden />
-            Analyze footage
-          </ButtonLink>
-        </div>
-      </div>
+  const hourly = completeHours(data).map((t) => BEHAVIOURS.reduce((n, b) => n + t.counts[b], 0))
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Cows detected today" value={formatNumber(data.peak_cows_today)} hint="Most cows seen together in one frame" icon={PawPrint} />
+  return (
+    <div>
+      <PageHeader
+        title="Dashboard"
+        description={`${greeting()}${firstName ? `, ${firstName}` : ''}. Here’s how the herd at ${workspace.name} is doing today.`}
+        actions={
+          <>
+            <ButtonLink to={path('cameras')} variant="secondary">
+              <Video className="size-4" strokeWidth={1.75} aria-hidden />
+              Cameras
+            </ButtonLink>
+            <ButtonLink to={path('analyze')}>
+              <ScanSearch className="size-4" strokeWidth={1.75} aria-hidden />
+              Analyze footage
+            </ButtonLink>
+          </>
+        }
+      />
+
+      <div className="flex flex-col gap-6">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Cows detected today" value={formatNumber(data.peak_cows_today)} hint="Most cows seen together in one frame">
+          {hourly.some((n) => n > 0) && <Sparkline values={hourly} label="Detections per hour, last 24 hours" />}
+        </StatCard>
         <StatCard
           label="Active alerts"
           value={formatNumber(data.active_alerts)}
           hint={data.active_alerts > 0 ? 'Needs your attention' : 'Everything looks normal'}
-          icon={Bell}
-          tone={data.active_alerts > 0 ? 'danger' : 'neutral'}
+          tone={data.active_alerts > 0 ? 'danger' : 'success'}
           to={path('alerts')}
         />
         <StatCard
@@ -79,15 +91,14 @@ export default function Dashboard() {
           value={
             <>
               {data.cameras_online}
-              <span className="text-lg font-medium text-muted"> / {data.cameras_total}</span>
+              <span className="text-muted"> / {data.cameras_total}</span>
             </>
           }
           hint={data.cameras_total === 0 ? 'No cameras added yet' : 'Being monitored right now'}
-          icon={Cctv}
           tone={data.cameras_online > 0 ? 'success' : 'neutral'}
           to={path('cameras')}
         />
-        <StatCard label="Analyses run today" value={formatNumber(data.analyses_today)} hint="Images, videos and camera sessions" icon={ScanSearch} />
+        <StatCard label="Analyses run today" value={formatNumber(data.analyses_today)} hint="Images, videos and camera sessions" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[3fr_2fr]">
@@ -124,7 +135,7 @@ export default function Dashboard() {
           <CardHeader
             title="Recent alerts"
             actions={
-              <Link to={path('alerts')} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              <Link to={path('alerts')} className={LINK}>
                 View all <ArrowRight className="size-3.5" aria-hidden />
               </Link>
             }
@@ -132,7 +143,7 @@ export default function Dashboard() {
           {data.recent_alerts.length === 0 ? (
             <EmptyState icon={Bell} title="No alerts yet" description="Alerts appear here when a rule is triggered on a monitored camera." />
           ) : (
-            <ul className="divide-y divide-line">
+            <ul className="border-t border-line">
               {data.recent_alerts.map((a) => (
                 <AlertItem key={a.id} alert={a} />
               ))}
@@ -144,7 +155,7 @@ export default function Dashboard() {
           <CardHeader
             title="Cameras"
             actions={
-              <Link to={path('cameras')} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              <Link to={path('cameras')} className={LINK}>
                 Manage <ArrowRight className="size-3.5" aria-hidden />
               </Link>
             }
@@ -165,13 +176,14 @@ export default function Dashboard() {
               }
             />
           ) : (
-            <ul className="divide-y divide-line">
+            <ul className="border-t border-line">
               {cameras.data.slice(0, 6).map((c) => (
                 <CameraItem key={c.id} camera={c} />
               ))}
             </ul>
           )}
         </Card>
+      </div>
       </div>
     </div>
   )
@@ -181,35 +193,27 @@ function BehaviourBreakdown({ data, total }: { data: DashboardSummary; total: nu
   const rows = BEHAVIOURS.map((b) => ({ b, n: data.behaviour_counts[b] })).sort((x, y) => y.n - x.n)
   return (
     <div>
-      <div className="flex h-3 gap-0.5 overflow-hidden rounded-full" role="img" aria-label="Share of detections per behaviour today">
-        {rows
-          .filter((r) => r.n > 0)
-          .map(({ b, n }) => (
-            <div key={b} style={{ width: `${(n / total) * 100}%`, backgroundColor: BEHAVIOUR_COLOR[b] }} />
-          ))}
-      </div>
-      <table className="mt-5 w-full text-sm">
+      <CompositionBar parts={rows} label="Share of detections per behaviour today" />
+      <table className="mt-6 w-full text-sm">
         <caption className="sr-only">Detections per behaviour today</caption>
         <thead>
-          <tr className="text-left text-xs font-medium text-muted">
-            <th scope="col" className="pb-2 font-medium">Behaviour</th>
-            <th scope="col" className="pb-2 text-right font-medium">Detections</th>
-            <th scope="col" className="w-2/5 pb-2 pl-6 font-medium">Share</th>
+          <tr className="text-left text-xs text-muted">
+            <th scope="col" className="pb-2 font-normal">Behaviour</th>
+            <th scope="col" className="pb-2 text-right font-normal">Detections</th>
+            <th scope="col" className="w-2/5 pb-2 pl-6 font-normal">Share</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(({ b, n }) => (
             <tr key={b} className="border-t border-line">
-              <td className="py-2">
+              <td className="py-3">
                 <BehaviourBadge behaviour={b} />
               </td>
-              <td className="py-2.5 text-right tabular-nums">{formatNumber(n)}</td>
-              <td className="py-2.5 pl-6">
+              <td className="numeric py-3 text-right">{formatNumber(n)}</td>
+              <td className="py-3 pl-6">
                 <span className="flex items-center gap-3">
-                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-soft">
-                    <span className="block h-full rounded-full" style={{ width: `${pct(n, total)}%`, backgroundColor: BEHAVIOUR_COLOR[b] }} />
-                  </span>
-                  <span className="w-9 text-right text-muted tabular-nums">{pct(n, total)}%</span>
+                  <ShareBar behaviour={b} percent={pct(n, total)} />
+                  <span className="numeric w-12 text-right text-muted">{pct(n, total)}%</span>
                 </span>
               </td>
             </tr>
@@ -223,8 +227,8 @@ function BehaviourBreakdown({ data, total }: { data: DashboardSummary; total: nu
 function HerdSignals({ data, total }: { data: DashboardSummary; total: number }) {
   const c = data.behaviour_counts
   const shares = [
-    { label: 'Lying', value: pct(c.lying, total), color: BEHAVIOUR_COLOR.lying, note: 'of detections today' },
-    { label: 'Eating', value: pct(c.foraging, total), color: BEHAVIOUR_COLOR.foraging, note: 'of detections today' },
+    { label: 'Lying', b: 'lying' as const, value: pct(c.lying, total), note: 'of detections today' },
+    { label: 'Eating', b: 'foraging' as const, value: pct(c.foraging, total), note: 'of detections today' },
   ]
   const lastSeen = [
     { label: 'Last drinking seen', at: data.last_seen.drinking },
@@ -234,26 +238,28 @@ function HerdSignals({ data, total }: { data: DashboardSummary; total: number })
   return (
     <Card>
       <CardHeader title="Herd signals" description="Quick health indicators from today’s detections" />
-      <CardBody className="flex flex-col gap-5">
+      <CardBody className="flex flex-col gap-6">
         {shares.map((s) => (
           <div key={s.label}>
-            <div className="flex items-baseline justify-between">
-              <p className="text-sm font-medium">{s.label}</p>
-              <p className="text-sm">
-                <span className="text-lg font-semibold tabular-nums">{s.value}%</span>{' '}
-                <span className="text-muted">{s.note}</span>
+            <div className="flex items-baseline justify-between gap-4">
+              <p className="flex items-center gap-2 text-sm text-ink">
+                <Swatch behaviour={s.b} />
+                {s.label}
+              </p>
+              <p className="text-sm text-muted">
+                <span className="numeric text-base text-ink">{s.value}%</span> {s.note}
               </p>
             </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-soft">
-              <div className="h-full rounded-full" style={{ width: `${s.value}%`, backgroundColor: s.color }} />
+            <div className="mt-3 flex">
+              <ShareBar behaviour={s.b} percent={s.value} />
             </div>
           </div>
         ))}
-        <dl className="mt-1 divide-y divide-line border-t border-line">
+        <dl className="border-t border-line">
           {lastSeen.map((r) => (
-            <div key={r.label} className="flex items-center justify-between py-2.5 text-sm">
-              <dt className="text-muted">{r.label}</dt>
-              <dd className="font-medium">{r.at ? formatRelative(r.at) : 'Not yet'}</dd>
+            <div key={r.label} className="flex items-center justify-between border-b border-line py-3 text-sm last:border-b-0">
+              <dt className="text-secondary">{r.label}</dt>
+              <dd className="numeric text-ink">{r.at ? formatRelative(r.at) : 'Not yet'}</dd>
             </div>
           ))}
         </dl>
@@ -277,7 +283,7 @@ function ActivityChart({ data }: { data: DashboardSummary }) {
   if (!hasData) return <EmptyState title="No activity in the last 24 hours" description="The chart fills in while cameras are being monitored." />
   return (
     <div>
-      <ul className="mb-4 flex flex-wrap gap-2" aria-hidden>
+      <ul className="mb-6 flex flex-wrap gap-x-6 gap-y-2" aria-hidden>
         {BEHAVIOURS.map((b) => (
           <li key={b}>
             <BehaviourBadge behaviour={b} />
@@ -286,11 +292,16 @@ function ActivityChart({ data }: { data: DashboardSummary }) {
       </ul>
       <figure aria-label="Detections per hour by behaviour over the last 24 hours">
         <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={rows} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-            <CartesianGrid vertical={false} stroke="#e3e6e4" />
-            <XAxis dataKey="time" tick={AXIS} tickLine={false} axisLine={false} minTickGap={28} />
-            <YAxis tick={AXIS} tickLine={false} axisLine={false} allowDecimals={false} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
+          <AreaChart data={rows} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--color-line)" />
+            <XAxis dataKey="time" tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--color-line)' }} minTickGap={32} tickMargin={8} />
+            <YAxis tick={AXIS} tickLine={false} axisLine={false} allowDecimals={false} tickMargin={8} />
+            <Tooltip
+              contentStyle={TOOLTIP_STYLE}
+              itemStyle={TOOLTIP_ITEM}
+              labelStyle={TOOLTIP_LABEL}
+              cursor={{ stroke: 'var(--color-line-strong)' }}
+            />
             {BEHAVIOURS.map((b) => (
               <Area
                 key={b}
@@ -298,10 +309,10 @@ function ActivityChart({ data }: { data: DashboardSummary }) {
                 dataKey={b}
                 name={BEHAVIOUR_LABEL[b]}
                 stackId="herd"
-                stroke="#ffffff"
-                strokeWidth={1.5}
+                stroke="var(--color-white)"
+                strokeWidth={1}
                 fill={BEHAVIOUR_COLOR[b]}
-                fillOpacity={0.88}
+                fillOpacity={1}
                 isAnimationActive={false}
               />
             ))}
@@ -316,18 +327,11 @@ function AlertItem({ alert: a }: { alert: Alert }) {
   const open = a.status === 'open'
   const danger = a.severity === 'danger'
   return (
-    <li className="flex items-start gap-3 px-5 py-3.5">
-      <span
-        className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${
-          !open ? 'bg-neutral-soft text-muted' : danger ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning'
-        }`}
-      >
-        <Bell className="size-4" aria-hidden />
-      </span>
+    <li className="flex items-start gap-4 border-b border-line px-6 py-4 last:border-b-0">
       <div className="min-w-0 flex-1">
-        <p className={`text-sm ${open ? 'font-medium text-ink' : 'text-muted'}`}>{a.message}</p>
-        <p className="mt-0.5 text-xs text-muted">
-          {a.camera_name ?? 'Camera'}, {formatRelative(a.created_at)}
+        <p className={`text-sm ${open ? 'text-ink' : 'text-secondary'}`}>{a.message}</p>
+        <p className="mt-1 text-xs text-muted">
+          {a.camera_name ?? 'Camera'} · <span className="numeric">{formatRelative(a.created_at)}</span>
         </p>
       </div>
       {open ? <Badge tone={danger ? 'danger' : 'warning'}>{danger ? 'High' : 'Medium'}</Badge> : <Badge>Acknowledged</Badge>}
@@ -346,16 +350,16 @@ function CameraItem({ camera: c }: { camera: Camera }) {
   const { path } = useWorkspace()
   const s = CAMERA_STATE[c.status]
   return (
-    <li>
-      <Link to={path(`cameras/${c.id}`)} className="flex items-center gap-3 px-5 py-3.5 hover:bg-page">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
-          <Video className="size-4" aria-hidden />
-        </span>
+    <li className="border-b border-line last:border-b-0">
+      <Link to={path(`cameras/${c.id}`)} className="flex items-center gap-4 px-6 py-4 transition-colors duration-150 hover:bg-surface-alt">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{c.name}</p>
+          <p className="truncate text-sm text-ink">{c.name}</p>
           <p className="truncate text-xs text-muted">{c.location ?? KIND_LABEL[c.kind]}</p>
         </div>
-        <Badge tone={s.tone}>{s.label}</Badge>
+        <span className="flex items-center gap-2 text-xs text-secondary">
+          <StatusDot tone={s.tone} />
+          {s.label}
+        </span>
       </Link>
     </li>
   )

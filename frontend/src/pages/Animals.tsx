@@ -4,8 +4,8 @@ import { errorMessage } from '../api/client'
 import { animalApi } from '../api/endpoints'
 import type { Animal } from '../api/types'
 import { Button } from '../components/ui/Button'
-import { Card, PageToolbar } from '../components/ui/Card'
-import { Input, Textarea } from '../components/ui/Field'
+import { Card, PageHeader } from '../components/ui/Card'
+import { control, Input, Textarea } from '../components/ui/Field'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState, ErrorState, Loading, Notice } from '../components/ui/States'
 import { Table, Td, Th } from '../components/ui/Table'
@@ -32,7 +32,8 @@ export default function Animals() {
 
   return (
     <div>
-      <PageToolbar
+      <PageHeader
+        title="Animals"
         description="A simple register of your animals. Records are kept by hand; cows are not identified individually from video."
         actions={
           isAdmin && (
@@ -44,19 +45,19 @@ export default function Animals() {
       />
       <Card>
         {data && data.length > 0 && (
-          <div className="border-b border-line px-5 py-3">
+          <div className="px-6 py-4">
             <label htmlFor="animal-search" className="sr-only">
               Search animals
             </label>
-            <div className="relative max-w-xs">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
+            <div className="relative max-w-narrow">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" aria-hidden />
               <input
                 id="animal-search"
                 type="search"
                 placeholder="Search tag, name or breed"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-9 w-full rounded-md border border-line-strong bg-surface pr-3 pl-9 text-sm"
+                className={`${control} h-9 pl-9`}
               />
             </div>
           </div>
@@ -93,11 +94,11 @@ export default function Animals() {
             <tbody>
               {rows.map((a) => (
                 <tr key={a.id}>
-                  <Td className="font-mono text-[13px] font-medium">{a.tag_id}</Td>
+                  <Td className="numeric text-xs">{a.tag_id}</Td>
                   <Td>{a.name ?? '—'}</Td>
                   <Td>{a.breed ?? '—'}</Td>
                   <Td className="whitespace-nowrap">{formatAge(a.age_months)}</Td>
-                  <Td className="max-w-72 truncate text-muted" title={a.notes ?? undefined}>
+                  <Td className="max-w-72 min-w-40 truncate text-secondary" title={a.notes ?? undefined}>
                     {a.notes ?? '—'}
                   </Td>
                   {isAdmin && (

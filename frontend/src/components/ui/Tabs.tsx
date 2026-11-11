@@ -6,7 +6,7 @@ interface Tab<T extends string> {
 
 export function Tabs<T extends string>({ tabs, value, onChange, label }: { tabs: Tab<T>[]; value: T; onChange: (v: T) => void; label: string }) {
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1 border-b border-line">
+    <div role="tablist" aria-label={label} className="flex gap-4 border-b border-line">
       {tabs.map((t) => {
         const active = t.value === value
         return (
@@ -16,14 +16,12 @@ export function Tabs<T extends string>({ tabs, value, onChange, label }: { tabs:
             type="button"
             aria-selected={active}
             onClick={() => onChange(t.value)}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
-              active ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-ink'
+            className={`-mb-px flex h-11 items-center gap-2 border-b-2 text-sm font-medium transition-colors duration-150 ${
+              active ? 'border-ink text-ink' : 'border-transparent text-secondary hover:text-ink'
             }`}
           >
             {t.label}
-            {t.count !== undefined && (
-              <span className={`rounded-md px-1.5 text-xs tabular-nums ${active ? 'bg-primary-soft' : 'bg-neutral-soft'}`}>{t.count}</span>
-            )}
+            {t.count !== undefined && <span className="numeric text-xs text-muted">{t.count}</span>}
           </button>
         )
       })}

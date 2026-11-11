@@ -6,7 +6,7 @@ import type { Behaviour } from '../api/types'
 import { BehaviourBadge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { buttonClass } from '../components/ui/buttonStyles'
-import { Card, CardBody } from '../components/ui/Card'
+import { Card, CardBody, PageHeader } from '../components/ui/Card'
 import { Input, Select } from '../components/ui/Field'
 import { EmptyState, ErrorState, Loading } from '../components/ui/States'
 import { Table, Td, Th } from '../components/ui/Table'
@@ -75,9 +75,11 @@ export default function Activity() {
   const hasFilters = Object.values(applied).some(Boolean)
 
   return (
-    <div className="flex flex-col gap-6">
+    <div>
+      <PageHeader title="Activity logs" description="Every detection from uploads and monitored cameras. Filter by time, camera or behaviour, and export what you see as CSV." />
+      <div className="flex flex-col gap-6">
       <Card>
-        <CardBody>
+        <CardBody className="pt-6">
           <form onSubmit={apply} className="grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
             <Input label="From" type="datetime-local" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} />
             <Input label="To" type="datetime-local" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />
@@ -111,7 +113,7 @@ export default function Activity() {
               Showing detections {applied.cow && `of cow #${applied.cow} `}from analysis #{applied.analysis} only.{' '}
               <button
                 type="button"
-                className="font-medium text-primary hover:underline"
+                className="link"
                 onClick={() => {
                   setDraft({ ...draft, analysis: '', cow: '' })
                   const next = new URLSearchParams(params)
@@ -129,9 +131,9 @@ export default function Activity() {
       </Card>
 
       <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
           <p className="text-sm text-muted">
-            {result.data ? `${formatNumber(total)} detection${total === 1 ? '' : 's'}` : ' '}
+            {result.data ? <><span className="numeric text-ink">{formatNumber(total)}</span> detection{total === 1 ? '' : 's'}</> : ' '}
           </p>
           <a
             href={detectionApi.exportUrl(workspace.id, filters)}
@@ -172,23 +174,23 @@ export default function Activity() {
               <tbody>
                 {result.data.items.map((d) => (
                   <tr key={d.id}>
-                    <Td className="whitespace-nowrap text-muted tabular-nums">{dateTimeSeconds.format(new Date(d.frame_time))}</Td>
+                    <Td className="whitespace-nowrap text-muted numeric">{dateTimeSeconds.format(new Date(d.frame_time))}</Td>
                     <Td className="whitespace-nowrap">
                       {d.camera_id ? (cameraName.get(d.camera_id) ?? `Camera #${d.camera_id}`) : `Upload #${d.analysis_id}`}
                     </Td>
-                    <Td className="tabular-nums">{d.track_id ? `#${d.track_id}` : '—'}</Td>
+                    <Td className="numeric">{d.track_id ? `#${d.track_id}` : '—'}</Td>
                     <Td>
                       <BehaviourBadge behaviour={d.behaviour} />
                     </Td>
                     <Td className="capitalize">{d.posture ?? '—'}</Td>
                     <Td className="capitalize">{d.state ?? '—'}</Td>
-                    <Td className="text-right tabular-nums">{formatPercent(d.confidence)}</Td>
+                    <Td className="text-right numeric">{formatPercent(d.confidence)}</Td>
                   </tr>
                 ))}
               </tbody>
             </Table>
-            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-              <p className="text-sm text-muted tabular-nums">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+              <p className="text-sm text-muted numeric">
                 {formatNumber(page * PAGE_SIZE + 1)}–{formatNumber(Math.min(total, (page + 1) * PAGE_SIZE))} of {formatNumber(total)}
               </p>
               <div className="flex gap-2">
@@ -203,6 +205,7 @@ export default function Activity() {
           </>
         )}
       </Card>
+      </div>
     </div>
   )
 }

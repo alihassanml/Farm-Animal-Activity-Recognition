@@ -1,9 +1,9 @@
 import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 
-const control =
-  'w-full rounded-md border border-line-strong bg-surface px-3 text-[15px] text-ink placeholder:text-muted ' +
-  'focus:border-primary focus:outline-2 focus:outline-offset-0 focus:outline-primary/30 ' +
-  'disabled:bg-page disabled:text-muted aria-[invalid=true]:border-danger'
+export const control =
+  'w-full rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-faint ' +
+  'transition-colors duration-150 hover:border-faint focus:border-ink focus:outline-none focus-visible:outline-none ' +
+  'disabled:bg-surface-alt disabled:text-muted aria-[invalid=true]:border-critical'
 
 interface WrapProps {
   label: string
@@ -16,17 +16,17 @@ interface WrapProps {
 
 function Wrap({ label, hint, error, id, children, className = '' }: WrapProps) {
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
+    <div className={`flex flex-col gap-2 ${className}`}>
       <label htmlFor={id} className="text-sm font-medium text-ink">
         {label}
       </label>
       {children}
       {error ? (
-        <p id={`${id}-msg`} className="text-sm text-danger">
+        <p id={`${id}-msg`} className="text-xs text-critical">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${id}-msg`} className="text-sm text-muted">
+        <p id={`${id}-msg`} className="text-xs text-muted">
           {hint}
         </p>
       ) : null}
@@ -42,7 +42,7 @@ export function Input({ label, hint, error, wrapperClassName, className = '', ..
     <Wrap label={label} hint={hint} error={error} id={id} className={wrapperClassName}>
       <input
         id={id}
-        className={`${control} h-10 ${className}`}
+        className={`${control} h-11 ${className}`}
         aria-invalid={error ? true : undefined}
         aria-describedby={error || hint ? `${id}-msg` : undefined}
         {...rest}
@@ -57,7 +57,7 @@ export function Select({ label, hint, error, wrapperClassName, className = '', c
     <Wrap label={label} hint={hint} error={error} id={id} className={wrapperClassName}>
       <select
         id={id}
-        className={`${control} h-10 pr-8 ${className}`}
+        className={`${control} h-11 pr-8 ${className}`}
         aria-invalid={error ? true : undefined}
         aria-describedby={error || hint ? `${id}-msg` : undefined}
         {...rest}
@@ -92,11 +92,11 @@ export function Toggle({ label, checked, onChange, disabled }: { label: string; 
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full border transition-colors disabled:opacity-60 ${
-        checked ? 'border-primary bg-primary' : 'border-line-strong bg-neutral-soft'
+      className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full border transition-colors duration-150 disabled:opacity-50 ${
+        checked ? 'border-ink bg-ink' : 'border-line-strong bg-hover'
       }`}
     >
-      <span className={`inline-block size-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-5' : 'translate-x-1'}`} />
+      <span className={`inline-block size-4 rounded-full bg-white shadow-xs transition-transform duration-150 ${checked ? 'translate-x-5' : 'translate-x-1'}`} />
     </button>
   )
 }

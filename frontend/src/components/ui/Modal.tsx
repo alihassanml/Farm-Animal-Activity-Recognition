@@ -29,20 +29,20 @@ export function Modal({ open, title, onClose, children, footer }: Props) {
         onClose()
       }}
       aria-labelledby="modal-title"
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-lg border border-line bg-surface p-0 text-ink shadow-lg backdrop:bg-black/40"
+      className="m-auto w-[calc(100%-2rem)] max-w-dialog rounded-md border border-line bg-surface p-0 text-ink shadow-overlay backdrop:bg-black/30"
     >
       {open && (
         <div className="flex max-h-[85vh] flex-col">
-          <div className="flex items-center justify-between border-b border-line px-5 py-4">
-            <h2 id="modal-title" className="text-lg font-semibold">
+          <div className="flex items-center justify-between px-6 pt-6 pb-4">
+            <h2 id="modal-title" className="text-base font-semibold">
               {title}
             </h2>
-            <button type="button" onClick={onClose} className="rounded-md p-1 text-muted hover:bg-neutral-soft hover:text-ink" aria-label="Close">
-              <X className="size-[18px]" />
+            <button type="button" onClick={onClose} className="rounded-sm p-1 text-muted transition-colors duration-150 hover:bg-hover hover:text-ink" aria-label="Close">
+              <X className="size-4" />
             </button>
           </div>
-          <div className="overflow-y-auto px-5 py-4">{children}</div>
-          {footer && <div className="flex justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
+          <div className="overflow-y-auto px-6 pb-6 text-sm text-secondary">{children}</div>
+          {footer && <div className="flex justify-end gap-2 border-t border-line px-6 py-4">{footer}</div>}
         </div>
       )}
     </dialog>

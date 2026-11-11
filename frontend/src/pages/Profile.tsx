@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { errorMessage } from '../api/client'
 import { authApi } from '../api/endpoints'
 import { Button } from '../components/ui/Button'
-import { Card, CardBody, CardHeader } from '../components/ui/Card'
+import { Card, CardBody, CardHeader, PageHeader } from '../components/ui/Card'
 import { Input } from '../components/ui/Field'
 import { Notice } from '../components/ui/States'
 import { useAuth } from '../context/auth'
@@ -11,9 +11,12 @@ type Msg = { tone: 'success' | 'danger'; text: string } | null
 
 export default function Profile() {
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-2">
-      <Details />
-      <Password />
+    <div>
+      <PageHeader title="Profile" description="Your name and password. These apply to every workspace you belong to." />
+      <div className="grid items-start gap-6 xl:grid-cols-2">
+        <Details />
+        <Password />
+      </div>
     </div>
   )
 }

@@ -20,15 +20,18 @@ export function SetupChecklist({ data }: { data: DashboardSummary }) {
   const doneCount = steps.filter((s) => s.done).length
   if (dismissed || doneCount === steps.length) return null
 
-  const ctaClass = 'mt-1.5 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline'
+  const ctaClass = 'link mt-2 inline-flex items-center gap-1 text-sm'
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-4 px-5 pt-4">
+      <div className="flex items-start justify-between gap-4 px-6 pt-6">
         <div>
-          <h3 className="text-base font-semibold">Get your workspace ready</h3>
-          <p className="mt-0.5 text-sm text-muted">
-            {doneCount} of {steps.length} done
+          <h2 className="text-base font-semibold">Get your workspace ready</h2>
+          <p className="mt-1 text-sm text-secondary">
+            <span className="numeric">
+              {doneCount} of {steps.length}
+            </span>{' '}
+            done
           </p>
         </div>
         <button
@@ -37,27 +40,27 @@ export function SetupChecklist({ data }: { data: DashboardSummary }) {
             setFlag(key)
             setDismissed(true)
           }}
-          className="rounded-md p-1 text-muted hover:bg-neutral-soft hover:text-ink"
+          className="rounded-sm p-1 text-muted transition-colors duration-150 hover:bg-hover hover:text-ink"
           aria-label="Hide setup steps"
         >
           <X className="size-4" />
         </button>
       </div>
-      <div className="mx-5 mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-soft">
-        <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+      <div className="mx-6 mt-4 h-1 bg-surface-alt">
+        <div className="h-full bg-green-600 transition-[width] duration-500 ease-out" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
       </div>
-      <ol className="grid gap-px p-2 sm:grid-cols-3">
+      <ol className="grid gap-6 p-6 sm:grid-cols-3">
         {steps.map((s) => (
-          <li key={s.title} className="flex items-start gap-3 rounded-md p-3">
+          <li key={s.title} className="flex items-start gap-3">
             <span
-              className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md ${s.done ? 'bg-primary text-white' : 'border border-line-strong text-transparent'}`}
+              className={`mt-1 flex size-5 shrink-0 items-center justify-center rounded-full ${s.done ? 'bg-ink text-white' : 'border border-line-strong text-transparent'}`}
               aria-hidden
             >
-              <Check className="size-3.5" strokeWidth={3} />
+              <Check className="size-3" strokeWidth={3} />
             </span>
             <div className="min-w-0">
-              <p className={`font-medium ${s.done ? 'text-muted line-through' : ''}`}>{s.title}</p>
-              <p className="text-sm text-muted">{s.text}</p>
+              <p className={`text-sm font-medium ${s.done ? 'text-muted line-through' : 'text-ink'}`}>{s.title}</p>
+              <p className="mt-1 text-sm text-secondary">{s.text}</p>
               {!s.done &&
                 s.to &&
                 (s.to.startsWith('#') ? (

@@ -26,13 +26,15 @@ from ..models import POSTURES, STATES
 
 log = logging.getLogger(__name__)
 
-# BGR colours for box drawing; same hues as the frontend behaviour palette.
+# BGR colours for box drawing, from the frontend tokens (frontend/src/styles/tokens.css):
+# activity behaviours use the deep peach (--color-peach-600), healthy rumination the deep
+# green (--color-green-600), resting/lying the neutral series grey (--color-series-neutral).
 _HEX = {
-    "standing": "#2E6FB0",
-    "lying": "#7A5AA6",
-    "foraging": "#2E7D32",
-    "drinking": "#0B7676",
-    "rumination": "#9A5B00",
+    "standing": "#D9844F",
+    "lying": "#D4D4D4",
+    "foraging": "#D9844F",
+    "drinking": "#D9844F",
+    "rumination": "#6E9F45",
 }
 COLORS_BGR = {k: (int(v[5:7], 16), int(v[3:5], 16), int(v[1:3], 16)) for k, v in _HEX.items()}
 
@@ -153,8 +155,9 @@ def annotate(frame_bgr: np.ndarray, dets: list[Det]) -> np.ndarray:
         (tw, th), base = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
         ty = max(p1[1], th + base + 4)
         cv2.rectangle(img, (p1[0], ty - th - base - 4), (p1[0] + tw + 6, ty), color, -1)
+        # Near-black label text (--color-ink): readable on every box colour above.
         cv2.putText(img, label, (p1[0] + 3, ty - base - 2), cv2.FONT_HERSHEY_SIMPLEX, scale,
-                    (255, 255, 255), 1, cv2.LINE_AA)
+                    (10, 10, 10), 1, cv2.LINE_AA)
     return img
 
 

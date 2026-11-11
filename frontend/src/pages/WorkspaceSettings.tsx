@@ -7,8 +7,8 @@ import type { Invite, Member, Role } from '../api/types'
 import { SetupChecklist } from '../components/SetupChecklist'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
-import { Card, CardBody, CardHeader } from '../components/ui/Card'
-import { Input, Select } from '../components/ui/Field'
+import { Card, CardBody, CardHeader, PageHeader } from '../components/ui/Card'
+import { control, Input, Select } from '../components/ui/Field'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState, ErrorState, Loading, Notice } from '../components/ui/States'
 import { Table, Td, Th } from '../components/ui/Table'
@@ -25,7 +25,9 @@ export default function WorkspaceSettings() {
   const invites = useAsyncInvites(isAdmin)
   const summary = useAsync(() => dashboardApi.summary(workspace.id), [workspace.id])
   return (
-    <div className="flex flex-col gap-6">
+    <div>
+      <PageHeader title="Workspace settings" description={`Name, members and invites for ${workspace.name}.`} />
+      <div className="flex flex-col gap-6">
       {summary.data && <SetupChecklist key={workspace.id} data={summary.data} />}
       <div className={`grid gap-6 ${isAdmin ? 'xl:grid-cols-2' : ''}`}>
         <General />
@@ -37,6 +39,7 @@ export default function WorkspaceSettings() {
       </div>
       <Members />
       {isAdmin && <PendingInvites state={invites} />}
+      </div>
     </div>
   )
 }
@@ -73,7 +76,7 @@ function General() {
       <CardHeader title="General" />
       <CardBody>
         {isAdmin ? (
-          <form onSubmit={submit} className="flex max-w-md flex-col gap-4">
+          <form onSubmit={submit} className="flex max-w-narrow flex-col gap-4">
             {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
             <Input label="Workspace name" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
             <div>
@@ -116,7 +119,7 @@ function Members() {
     <Card>
       <CardHeader title="Members" description="Admins manage members, cameras, animals and alert rules. Members can view everything, run analyses and acknowledge alerts." />
       {actionError && (
-        <div className="px-5 pt-4">
+        <div className="px-6 pt-4">
           <Notice>{actionError}</Notice>
         </div>
       )}
@@ -154,7 +157,7 @@ function Members() {
                       aria-label={`Role for ${m.name}`}
                       value={m.role}
                       onChange={(e) => setRole(m, e.target.value as Role)}
-                      className="h-9 rounded-md border border-line-strong bg-surface px-2 text-sm"
+                      className={`${control} h-9 pr-8`}
                     >
                       <option value="admin">Admin</option>
                       <option value="member">Member</option>
@@ -163,7 +166,7 @@ function Members() {
                     <Badge tone={m.role === 'admin' ? 'primary' : 'neutral'}>{m.role === 'admin' ? 'Admin' : 'Member'}</Badge>
                   )}
                 </Td>
-                <Td className="whitespace-nowrap text-muted">{formatDate(m.joined_at)}</Td>
+                <Td className="numeric whitespace-nowrap text-muted">{formatDate(m.joined_at)}</Td>
                 {isAdmin && (
                   <Td className="text-right">
                     <Button size="sm" variant="ghost" onClick={() => setRemoving(m)}>
@@ -297,7 +300,7 @@ function InviteForm({ onCreated }: { onCreated: () => void }) {
     <Card className="h-full">
       <CardHeader title="Invite people" description="Create an invite link and send it yourself. Links expire after 7 days and only work for the email you enter." />
       <CardBody className="flex flex-col gap-4">
-        <form onSubmit={submit} className="grid items-end gap-4 sm:grid-cols-[1fr_180px_auto]">
+        <form onSubmit={submit} className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
           <Input label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
           <Select label="Role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
             <option value="member">Member</option>
@@ -309,10 +312,10 @@ function InviteForm({ onCreated }: { onCreated: () => void }) {
         </form>
         {error && <Notice>{error}</Notice>}
         {created && (
-          <div className="rounded-md border border-line bg-page p-4">
+          <div className="rounded-sm border border-line bg-surface-alt p-4">
             <p className="text-sm font-medium">Invite link for {created.email}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-md border border-line bg-surface px-3 py-2 font-mono text-[13px]">{inviteLink(created.token)}</code>
+              <code className="numeric min-w-0 flex-1 truncate rounded-sm border border-line bg-surface px-3 py-2 text-xs">{inviteLink(created.token)}</code>
               <CopyButton text={inviteLink(created.token)} />
             </div>
           </div>
@@ -330,7 +333,7 @@ function PendingInvites({ state }: { state: ReturnType<typeof useAsyncInvites> }
     <Card>
       <CardHeader title="Pending invites" />
       {actionError && (
-        <div className="px-5 pt-4">
+        <div className="px-6 pt-4">
           <Notice>{actionError}</Notice>
         </div>
       )}
@@ -357,7 +360,7 @@ function PendingInvites({ state }: { state: ReturnType<typeof useAsyncInvites> }
               <tr key={inv.id}>
                 <Td className="font-medium">{inv.email}</Td>
                 <Td>{inv.role === 'admin' ? 'Admin' : 'Member'}</Td>
-                <Td className="whitespace-nowrap text-muted">{formatDate(inv.expires_at)}</Td>
+                <Td className="numeric whitespace-nowrap text-muted">{formatDate(inv.expires_at)}</Td>
                 <Td>
                   <div className="flex justify-end gap-1">
                     <CopyButton text={inviteLink(inv.token)} />

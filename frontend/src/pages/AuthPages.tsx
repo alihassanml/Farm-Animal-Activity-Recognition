@@ -1,50 +1,27 @@
-import { Check } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { errorMessage } from '../api/client'
-import { Logo } from '../components/layout/Logo'
+import { PublicShell, ShellTitle } from '../components/layout/PublicShell'
+import { FeedFrame } from '../components/marketing/FeedFrame'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Field'
 import { Notice } from '../components/ui/States'
 import { useAuth } from '../context/auth'
 
-const POINTS = [
-  'Recognises standing, lying, eating, drinking and rumination',
-  'Works with photos, videos and live barn cameras',
-  'Alerts your team when herd behaviour looks unusual',
-]
-
 function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: ReactNode; children: ReactNode; footer: ReactNode }) {
   return (
-    <div className="grid min-h-dvh bg-surface lg:grid-cols-[1fr_1fr]">
-      <div className="flex flex-col px-6 py-8 sm:px-12">
-        <Link to="/" className="self-start" aria-label="Farm Activity home">
-          <Logo />
-        </Link>
-        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12">
-          <h1 className="text-[28px] tracking-[-0.02em]">{title}</h1>
-          {subtitle && <p className="mt-2 text-muted">{subtitle}</p>}
-          <div className="mt-8">{children}</div>
-          <p className="mt-8 text-sm text-muted">{footer}</p>
+    <PublicShell
+      aside={
+        <div>
+          <FeedFrame eager={false} />
+          <p className="mt-4 text-xs text-muted">Every cow detected, numbered and labelled, straight from the barn camera.</p>
         </div>
-      </div>
-
-      <aside className="hidden flex-col justify-between bg-forest p-12 text-white lg:flex">
-        <p className="text-sm font-semibold text-forest-accent">Farm Activity</p>
-        <div className="max-w-md">
-          <h2 className="text-[32px] leading-tight tracking-[-0.02em]">Every cow, every hour, without walking the barn.</h2>
-          <ul className="mt-8 flex flex-col gap-4">
-            {POINTS.map((p) => (
-              <li key={p} className="flex items-start gap-3 text-forest-muted">
-                <Check className="mt-0.5 size-4 shrink-0 text-forest-accent" strokeWidth={3} aria-hidden />
-                {p}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <p className="text-sm text-forest-muted">YOLO11 model trained on the CBVD-5 cattle behaviour dataset.</p>
-      </aside>
-    </div>
+      }
+    >
+      <ShellTitle title={title} subtitle={subtitle} />
+      {children}
+      <p className="mt-8 text-sm text-secondary">{footer}</p>
+    </PublicShell>
   )
 }
 
@@ -80,7 +57,7 @@ export function Login() {
       footer={
         <>
           New here?{' '}
-          <Link to={withNext('/signup', next)} className="font-medium text-primary hover:underline">
+          <Link to={withNext('/signup', next)} className="link">
             Create an account
           </Link>
         </>
@@ -97,7 +74,7 @@ export function Login() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <Button type="submit" loading={busy} disabled={!email || !password} className="mt-2 h-11 w-full">
+        <Button type="submit" loading={busy} disabled={!email || !password} className="mt-2 w-full">
           Log in
         </Button>
       </form>
@@ -138,7 +115,7 @@ export function Signup() {
       footer={
         <>
           Already have an account?{' '}
-          <Link to={withNext('/login', next)} className="font-medium text-primary hover:underline">
+          <Link to={withNext('/login', next)} className="link">
             Log in
           </Link>
         </>
@@ -157,7 +134,7 @@ export function Signup() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <Button type="submit" loading={busy} disabled={!name.trim() || !email || !password} className="mt-2 h-11 w-full">
+        <Button type="submit" loading={busy} disabled={!name.trim() || !email || !password} className="mt-2 w-full">
           Sign up
         </Button>
       </form>

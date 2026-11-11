@@ -5,7 +5,7 @@ import { alertApi } from '../api/endpoints'
 import type { Alert, AlertRule, RuleType } from '../api/types'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
-import { Card, CardHeader } from '../components/ui/Card'
+import { Card, CardHeader, PageHeader } from '../components/ui/Card'
 import { Input, Select, Toggle } from '../components/ui/Field'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState, ErrorState, Loading, Notice } from '../components/ui/States'
@@ -18,9 +18,12 @@ import { formatDateTime, formatRelative } from '../lib/format'
 
 export default function Alerts() {
   return (
-    <div className="flex flex-col gap-6">
-      <AlertList />
-      <RuleSettings />
+    <div>
+      <PageHeader title="Alerts" description="Raised when a rule is triggered on a monitored camera. Acknowledge an alert once someone has checked on the herd." />
+      <div className="flex flex-col gap-6">
+        <AlertList />
+        <RuleSettings />
+      </div>
     </div>
   )
 }
@@ -52,7 +55,7 @@ function AlertList() {
 
   return (
     <Card>
-      <div className="px-5 pt-2">
+      <div className="px-6 pt-2">
         <Tabs
           label="Alert status"
           value={tab}
@@ -64,7 +67,7 @@ function AlertList() {
         />
       </div>
       {ackError && (
-        <div className="px-5 pt-4">
+        <div className="px-6 pt-4">
           <Notice>{ackError}</Notice>
         </div>
       )}
@@ -92,11 +95,11 @@ function AlertList() {
           <tbody>
             {rows.map((a) => (
               <tr key={a.id}>
-                <Td className="whitespace-nowrap text-muted" title={formatDateTime(a.created_at)}>
+                <Td className="numeric whitespace-nowrap text-muted" title={formatDateTime(a.created_at)}>
                   {formatRelative(a.created_at)}
                 </Td>
                 <Td className="whitespace-nowrap">{a.camera_name ?? '—'}</Td>
-                <Td>{a.message}</Td>
+                <Td className="min-w-64">{a.message}</Td>
                 <Td>
                   <Badge tone={a.severity === 'danger' ? 'danger' : 'warning'}>{a.severity === 'danger' ? 'High' : 'Medium'}</Badge>
                 </Td>
@@ -108,7 +111,7 @@ function AlertList() {
                   ) : (
                     <>
                       {a.acknowledged_by_name ?? 'Someone'}
-                      {a.acknowledged_at && <span className="block text-xs">{formatDateTime(a.acknowledged_at)}</span>}
+                      {a.acknowledged_at && <span className="numeric block text-xs">{formatDateTime(a.acknowledged_at)}</span>}
                     </>
                   )}
                 </Td>
@@ -162,7 +165,7 @@ function RuleSettings() {
         }
       />
       {actionError && (
-        <div className="px-5 pt-4">
+        <div className="px-6 pt-4">
           <Notice>{actionError}</Notice>
         </div>
       )}
@@ -190,7 +193,7 @@ function RuleSettings() {
             {data.map((r) => (
               <tr key={r.id}>
                 <Td className="font-medium whitespace-nowrap">{RULE_LABEL[r.rule_type]}</Td>
-                <Td className="text-muted">{describeRule(r.rule_type, r.threshold, r.window_minutes)}</Td>
+                <Td className="min-w-56 text-secondary">{describeRule(r.rule_type, r.threshold, r.window_minutes)}</Td>
                 <Td>
                   {isAdmin ? (
                     <Toggle label={`Enable ${RULE_LABEL[r.rule_type]}`} checked={r.is_enabled} onChange={(v) => update(r, { is_enabled: v })} />

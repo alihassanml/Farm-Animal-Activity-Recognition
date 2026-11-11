@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { errorMessage } from '../api/client'
 import { inviteApi } from '../api/endpoints'
-import { Logo } from '../components/layout/Logo'
+import { PublicShell } from '../components/layout/PublicShell'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { ErrorState, Loading, Notice } from '../components/ui/States'
 import { useAuth } from '../context/auth'
@@ -42,12 +42,12 @@ export default function AcceptInvite() {
     if (inv.status !== 'pending') {
       body = (
         <>
-          <h1 className="text-[22px]">Invite {inv.status}</h1>
-          <p className="mt-2 text-muted">
+          <h1 className="text-h3">Invite {inv.status}</h1>
+          <p className="mt-2 text-secondary">
             This invite to <strong className="text-ink">{inv.workspace_name}</strong> can no longer be used. Ask a workspace admin for a new
             link.
           </p>
-          <ButtonLink to="/app" variant="secondary" className="mt-6">
+          <ButtonLink to="/app" variant="secondary" className="mt-8">
             Go to the app
           </ButtonLink>
         </>
@@ -55,11 +55,11 @@ export default function AcceptInvite() {
     } else {
       body = (
         <>
-          <h1 className="text-[22px]">Join {inv.workspace_name}</h1>
-          <p className="mt-2 text-muted">
+          <h1 className="text-h3">Join {inv.workspace_name}</h1>
+          <p className="mt-2 text-secondary">
             You’ve been invited to join as {roleText}. The invite is for <strong className="text-ink">{inv.email}</strong>.
           </p>
-          <div className="mt-6 flex flex-col gap-3">
+          <div className="mt-8 flex flex-col gap-3">
             {error && <Notice>{error}</Notice>}
             {!me ? (
               <>
@@ -89,11 +89,8 @@ export default function AcceptInvite() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-12">
-      <Link to="/" className="mb-8" aria-label="Farm Activity home">
-        <Logo />
-      </Link>
-      <div className="w-full max-w-md rounded-lg border border-line bg-surface p-6 sm:p-8">{body}</div>
-    </div>
+    <PublicShell>
+      <div>{body}</div>
+    </PublicShell>
   )
 }

@@ -10,13 +10,28 @@ export const BEHAVIOUR_LABEL: Record<Behaviour, string> = {
   rumination: 'Rumination',
 }
 
-// Same values as tokens.css (charts need raw colours)
+/**
+ * Data colours per behaviour, as token references (tokens.css), so SVG charts,
+ * swatches and bars all read from the same source.
+ *   peach = activity (standing, feeding, drinking), green = healthy rumination,
+ *   neutral grey = resting / lying.
+ * FILL is for areas and swatches; STROKE is the deep tone for thin lines and
+ * small marks that must stay visible on white.
+ */
 export const BEHAVIOUR_COLOR: Record<Behaviour, string> = {
-  standing: '#2e6fb0',
-  lying: '#7a5aa6',
-  foraging: '#2e7d32',
-  drinking: '#0b7676',
-  rumination: '#9a5b00',
+  standing: 'var(--color-peach-600)',
+  lying: 'var(--color-series-neutral)',
+  foraging: 'var(--color-peach-300)',
+  drinking: 'var(--color-peach-100)',
+  rumination: 'var(--color-green-600)',
+}
+
+export const BEHAVIOUR_STROKE: Record<Behaviour, string> = {
+  standing: 'var(--color-peach-600)',
+  lying: 'var(--color-faint)',
+  foraging: 'var(--color-peach-600)',
+  drinking: 'var(--color-peach-600)',
+  rumination: 'var(--color-green-600)',
 }
 
 export const RULE_LABEL: Record<RuleType, string> = {
