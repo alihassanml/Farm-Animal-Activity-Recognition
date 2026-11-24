@@ -13,10 +13,10 @@ from sqlalchemy.exc import OperationalError
 
 from . import models  # noqa: F401  (registers tables)
 from .config import INSECURE_SECRETS, get_settings
-from .database import Base, add_missing_columns, engine
+from .database import Base, SessionLocal, add_missing_columns, engine
 from .logging_setup import setup_logging
 from .routers import alerts, analysis, animals, auth, cameras, dashboard, detections, invites, workspaces
-from .services import detector, video_worker
+from .services import alert_engine, detector, video_worker
 from .services.camera_worker import camera_manager
 
 VERSION = "1.2.0"
@@ -43,6 +43,9 @@ async def lifespan(_app: FastAPI):
     Base.metadata.create_all(engine)
     for col in add_missing_columns():
         log.info("Added database column %s", col)
+    with SessionLocal() as db:
+        if n := alert_engine.remove_legacy_rules(db):
+            log.info("Removed %d alert rule(s) for behaviours the model no longer detects", n)
     detector.load_detector()  # once, at startup; a missing model keeps the API up (see /api/health)
     video_worker.resume_unfinished()
     camera_manager.close_stale_sessions()

@@ -1,7 +1,7 @@
 // Mirrors backend/app/schemas.py
 
 export type Role = 'admin' | 'member'
-export type Behaviour = 'standing' | 'lying' | 'foraging' | 'drinking'
+export type Behaviour = 'standing' | 'lying' | 'foraging'
 
 export interface User {
   id: number
@@ -175,7 +175,7 @@ export interface Animal {
 
 export type AnimalInput = Omit<Animal, 'id' | 'created_at'>
 
-export type RuleType = 'lying_ratio' | 'no_foraging' | 'no_drinking'
+export type RuleType = 'lying_ratio' | 'no_foraging'
 
 export interface AlertRule {
   id: number

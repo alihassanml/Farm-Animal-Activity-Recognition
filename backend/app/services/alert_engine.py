@@ -4,7 +4,7 @@ Rules are herd-level: they look at all detections from one camera in a time wind
 Guards against noise:
   - a rule only runs once the camera has been monitored for the whole window;
   - the window must contain at least MIN_DETECTIONS cow detections (cows actually visible);
-  - "no foraging/drinking" counts a behaviour as seen only after MIN_EVENT_DETECTIONS
+  - "no foraging" counts a behaviour as seen only after MIN_EVENT_DETECTIONS
     detections with confidence >= EVENT_MIN_CONF, so one false positive doesn't reset it;
   - no new alert while one is open for the same rule + camera, or one was raised in the window.
 """
@@ -15,8 +15,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ..models import (
+    LEGACY_RULE_TYPES,
     RULE_LYING_RATIO,
-    RULE_NO_DRINKING,
     RULE_NO_FORAGING,
     Alert,
     AlertRule,
@@ -33,8 +33,17 @@ DEFAULT_LYING_THRESHOLD = 70.0
 DEFAULT_RULES = [
     {"rule_type": RULE_LYING_RATIO, "threshold": DEFAULT_LYING_THRESHOLD, "window_minutes": 60},
     {"rule_type": RULE_NO_FORAGING, "threshold": None, "window_minutes": 6 * 60},
-    {"rule_type": RULE_NO_DRINKING, "threshold": None, "window_minutes": 12 * 60},
 ]
+
+
+def remove_legacy_rules(db: Session) -> int:
+    """Delete alert rules for behaviours the model no longer detects (e.g. "no_drinking" from the
+    4-class model). Their old alerts stay; they just lose the link to the rule."""
+    rules = db.scalars(select(AlertRule).where(AlertRule.rule_type.in_(LEGACY_RULE_TYPES))).all()
+    for r in rules:
+        db.delete(r)
+    db.commit()
+    return len(rules)
 
 
 def fmt_window(minutes: int) -> str:
@@ -93,12 +102,10 @@ def evaluate_camera(
                         f"{ratio:.0f}% of cow detections on {camera.name} were lying over the last "
                         f"{window} (limit {limit:.0f}%)."
                     )
-        elif rule.rule_type in (RULE_NO_FORAGING, RULE_NO_DRINKING):
-            behaviour = "foraging" if rule.rule_type == RULE_NO_FORAGING else "drinking"
-            seen = count(Detection.state == behaviour, Detection.confidence >= EVENT_MIN_CONF)
+        elif rule.rule_type == RULE_NO_FORAGING:
+            seen = count(Detection.state == "foraging", Detection.confidence >= EVENT_MIN_CONF)
             if seen < MIN_EVENT_DETECTIONS:
-                message = f"No {behaviour} seen on {camera.name} in the last {window}."
-                severity = "danger" if behaviour == "drinking" else "warning"
+                message = f"No foraging seen on {camera.name} in the last {window}."
 
         if message:
             alert = Alert(

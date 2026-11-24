@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     cookie_secure: bool = False  # set true when served over HTTPS
 
     model_mode: Literal["single", "dual"] = "single"
-    model_path: Path = Path("models/best.pt")
+    model_path: Path = Path("models/model.pt")
     posture_model_path: Path = Path("models/best_posture.pt")
     state_model_path: Path = Path("models/best_state.pt")
     conf_threshold: float = Field(default=0.45, gt=0, lt=1)

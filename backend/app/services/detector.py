@@ -1,20 +1,20 @@
 """YOLO model loading and inference.
 
 Two modes (MODEL_MODE in .env):
-  single - one 4-class model (standing, lying, foraging, drinking).
-  dual   - a posture model (standing, lying) + a state model (foraging, drinking);
+  single - one 3-class model (standing, lying, foraging).
+  dual   - a posture model (standing, lying) + a state model (foraging);
            each state box is attached to the posture box it overlaps most (IoU >= MERGE_IOU).
 
 Every detection is reported the same way in both modes:
   posture   = standing | lying | None
-  state     = foraging | drinking | None
+  state     = foraging | None
   behaviour = state if there is one, otherwise posture
 
 Note for single mode: the model picks ONE label per cow (state wins over posture),
 so a standing cow that is eating comes back as posture=None, state=foraging.
 
-Old model files: the earlier 5-class model also had "rumination". It still loads, but its
-rumination boxes are dropped (rumination is no longer supported) and a warning is logged.
+Old model files: the earlier 4- and 5-class models also had "drinking" and "rumination". They
+still load, but boxes of those classes are dropped (no longer supported) and a warning is logged.
 """
 
 import logging
@@ -36,8 +36,7 @@ _HEX = {
     "standing": "#D9844F",
     "lying": "#D4D4D4",
     "foraging": "#D9844F",
-    "drinking": "#D9844F",
-}
+    }
 COLORS_BGR = {k: (int(v[5:7], 16), int(v[3:5], 16), int(v[1:3], 16)) for k, v in _HEX.items()}
 
 
@@ -89,7 +88,7 @@ def merge_posture_state(postures: list[Det], states: list[Det], min_iou: float) 
 def check_names(names: dict[int, str], expected: tuple[str, ...], path) -> set[str]:
     """Check a model's class names before using it. Returns the old classes to ignore.
 
-    Old classes (rumination, from the 5-class model) are allowed with a warning;
+    Old classes (drinking, rumination, from the 4- and 5-class models) are allowed with a warning;
     any other unknown class is an error."""
     found = set(names.values())
     legacy = found & set(LEGACY_BEHAVIOURS)
@@ -98,8 +97,8 @@ def check_names(names: dict[int, str], expected: tuple[str, ...], path) -> set[s
         raise ValueError(f"{path.name} has unexpected classes {sorted(unknown)}; expected {expected}")
     if legacy:
         log.warning(
-            "%s is an old model with %s. Rumination is no longer supported, so these boxes are "
-            "ignored. Use the new 4-class model (standing, lying, foraging, drinking).",
+            "%s is an old model with %s. Those classes are no longer supported, so these boxes are "
+            "ignored. Use the 3-class model (standing, lying, foraging).",
             path.name, ", ".join(sorted(legacy)),
         )
     return legacy

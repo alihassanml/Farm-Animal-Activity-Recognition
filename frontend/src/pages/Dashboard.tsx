@@ -231,7 +231,6 @@ function HerdSignals({ data, total }: { data: DashboardSummary; total: number })
     { label: 'Eating', b: 'foraging' as const, value: pct(c.foraging, total), note: 'of detections today' },
   ]
   const lastSeen = [
-    { label: 'Last drinking seen', at: data.last_seen.drinking },
     { label: 'Last eating seen', at: data.last_seen.foraging },
   ]
   return (

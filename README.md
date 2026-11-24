@@ -3,7 +3,7 @@
 Final Year Project — BSCS, Department of Computer Science, Lahore Garrison University
 Team: Fahad Moin, Faris Ali · Supervisor: Ahsan Raza
 
-A web system that detects cows in farm camera images and videos and recognises four behaviours: **standing, lying, foraging, drinking**. Farm teams work inside shared workspaces, see activity on a dashboard, and get alerts when herd behaviour looks abnormal.
+A web system that detects cows in farm camera images and videos and recognises three behaviours: **standing, lying, foraging**. Farm teams work inside shared workspaces, see activity on a dashboard, and get alerts when herd behaviour looks abnormal.
 
 ---
 
@@ -14,7 +14,7 @@ Image / Video / Camera  →  YOLO11 detection  →  Cow tracking (IDs)  →  Beh
                                                         └──────────→  Live view (WebSocket video with boxes)
 ```
 
-- **Model:** YOLO11s (Ultralytics), 4 classes, confidence threshold 0.45. One 4-class model, or a posture + state model pair.
+- **Model:** Ultralytics YOLO, 3 classes (standing, lying, foraging), confidence threshold 0.45. One 3-class model, or a posture + state model pair.
 - **Backend:** FastAPI + SQLite3 (SQLAlchemy ORM), background workers for videos and cameras.
 - **Frontend:** React (Vite) + TypeScript + Tailwind CSS.
 
@@ -22,14 +22,14 @@ Image / Video / Camera  →  YOLO11 detection  →  Cow tracking (IDs)  →  Beh
 
 | Area | What it does | Details |
 |---|---|---|
-| Detection | Finds every cow and labels it standing, lying, foraging or drinking | §2 |
+| Detection | Finds every cow and labels it standing, lying or foraging | §2 |
 | Tracking | Gives each cow a number (`#1`, `#2`, …) that stays the same across frames, with label smoothing | §2 |
 | Analyze | Image upload → instant annotated result; video upload → background job with progress and a per-cow table | §3, §4 |
 | Cameras | Webcam, CCTV/IP stream or looping recorded video, shown as cards with a live snapshot; click a card to watch live | §3, §4 |
 | Live view | Smooth video (up to 30 fps) with numbered boxes, cows in view, session totals | §4, §8 |
 | Dashboard | Today's herd numbers, behaviour split, herd signals, 24-hour chart, recent alerts, camera status | §4 |
 | Activity logs | Every detection, filterable, with cow IDs and CSV export | §4 |
-| Alerts | Herd-level rules (lying ratio, no foraging, no drinking) checked every minute with noise guards | §3 |
+| Alerts | Herd-level rules (lying ratio, no foraging) checked every minute with noise guards | §3 |
 | Workspaces | Teams with admin / member roles, invite links, setup checklist | §3, §4 |
 | Animals | Manual cow register | §3 |
 | Reliability | Health endpoint, setup doctor, logs with request IDs, auto-retry and reconnect | §8 |
@@ -40,13 +40,17 @@ Image / Video / Camera  →  YOLO11 detection  →  Cow tracking (IDs)  →  Beh
 
 **Datasets:** CBVD-5 (Kaggle, `fandaoerji/cbvd-5cow-behavior-video-dataset`; AVA-format labels, 3,199 annotated keyframes, 25,324 cow boxes) and a second barn (Beef Cattle dataset). Test sets are split **by video** to avoid leakage.
 
-**Final model:** YOLO11s, 4 classes (standing, lying, foraging, drinking), confidence threshold **0.45**.
+**Current model:** YOLOv8s, 3 classes (foraging, lying, standing; class order from `data.yaml`), trained 120 epochs at 640 px on the Roboflow *Cows movements and behaviours* dataset (v1). Confidence threshold **0.45**. Weights: `backend/models/model.pt` (`MODEL_PATH` in `backend/.env`).
 
-**Why 4 classes:** the client rejected the old 5-class model (mAP50 0.635). Rumination was removed because it conflicted with lying: the same cow had two labels. Rumination is future work.
+Validation results of the final epoch (Roboflow validation split, **not** a by-video test split, so treat them as optimistic): precision 0.857, recall 0.888, mAP50 0.910, mAP50-95 0.771. The best epoch (82) reached mAP50-95 0.783. Validation metrics stop improving after about epoch 60. The model has no `drinking` class, so drinking is not detected.
+
+**Earlier model (kept for reference):** YOLO11s, 4 classes (standing, lying, foraging, drinking). The results below are for that model.
+
+**Why not 5 classes:** the client rejected the old 5-class model (mAP50 0.635). Rumination was removed because it conflicted with lying: the same cow had two labels. Rumination is future work.
 
 **Results** (mAP50, test set, split by video):
 
-| Test set | Final model (4 classes) | Old model (5 classes) |
+| Test set | Earlier model (4 classes) | Old model (5 classes) |
 |---|---|---|
 | CBVD-5 | **0.762** | 0.635 |
 | Second barn (Beef Cattle dataset) | **0.918** | n/a |
@@ -54,7 +58,7 @@ Image / Video / Camera  →  YOLO11 detection  →  Cow tracking (IDs)  →  Beh
 
 Per class (CBVD-5 test set):
 
-| Class | Final model mAP50 | Old model mAP50 |
+| Class | Earlier model mAP50 | Old model mAP50 |
 |---|---|---|
 | standing | TODO: not supplied yet | 0.672 |
 | lying | **0.875** | 0.474 |
@@ -65,21 +69,21 @@ Per class (CBVD-5 test set):
 **Why YOLO11s:** it was compared with YOLO11m and YOLOv8s. YOLO11s gave the fewest false boxes (0.58 per image) and is the smallest and fastest.
 
 **Known limits:**
-- Drinking is the weakest class: the test set has only 71 drinking cows.
+- The current model has no drinking class. The earlier 4-class model's weakest class was drinking (71 cows in its test set).
 - On a laptop CPU the model runs at about **2.9 FPS**.
 - Tracking IDs last one session only. They cannot follow a named cow across days.
 
-**Old model files:** a 5-class `best.pt` still loads. The backend logs a warning that rumination is no longer supported and ignores its rumination boxes. Old database rows with `rumination` are hidden from charts and shown as "Rumination (old data)" in lists.
+**Old model files:** a 4- or 5-class model still loads. The backend logs a warning that `drinking` / `rumination` are no longer supported and ignores their boxes. Old database rows with those labels are hidden from charts and shown as "Drinking (old data)" / "Rumination (old data)" in lists. Old `no_drinking` alert rules are deleted when the backend starts; their past alerts stay.
 
 **Dual mode (optional):** two models instead of one, because a cow has a posture *and* a state at the same time (e.g. standing + eating).
 
 - `best_posture.pt` → standing, lying
-- `best_state.pt` → foraging, drinking
+- `best_state.pt` → foraging
 
 The backend supports both modes through config:
 
 ```
-MODEL_MODE=single   # uses models/best.pt (4 classes)
+MODEL_MODE=single   # uses MODEL_PATH, default models/model.pt (3 classes)
 MODEL_MODE=dual     # uses models/best_posture.pt + models/best_state.pt, merged by IoU ≥ 0.5
 ```
 
@@ -90,7 +94,7 @@ Both modes write the same three columns, so dashboards and alerts don't care whi
 | Column | Value |
 |---|---|
 | `posture` | `standing` / `lying` / empty |
-| `state` | `foraging` / `drinking` / empty |
+| `state` | `foraging` / empty |
 | `behaviour` | `state` if present, otherwise `posture` |
 
 In single mode the model picks one label per cow (state wins), so a standing cow that is eating is stored as `posture` empty, `state = foraging`. The lying-ratio alert therefore uses only cows with a posture (lying / (standing + lying)). A state box that overlaps no posture box in dual mode is kept with an empty `posture`.
@@ -132,15 +136,14 @@ In single mode the model picks one label per cow (state wins), so a standing cow
 - Admin sets rules per workspace, for example:
   - Lying ratio above X% for more than Y minutes.
   - No foraging detected for more than Z hours.
-  - No drinking detected for more than Z hours.
 - Alerts show on the dashboard and alerts page; members can acknowledge them.
 - Note: rules are herd-level (per camera). Cow IDs are used for per-cow summaries, not yet for alerts.
 - Rules are checked every 60 s per running camera, with guards against noise:
   - a rule only runs once the camera has been monitored for the whole window;
   - the window needs at least 30 cow detections (cows actually in view);
-  - "no foraging / drinking" counts the behaviour as seen only after 3 detections with confidence ≥ 0.5;
+  - "no foraging" counts the behaviour as seen only after 3 detections with confidence ≥ 0.5;
   - no new alert while one is open for the same rule + camera, or one was raised within the window.
-- New workspaces get three default rules: lying ≥ 70 % over 1 h, no foraging for 6 h, no drinking for 12 h.
+- New workspaces get two default rules: lying ≥ 70 % over 1 h, no foraging for 6 h.
 
 **Animals**
 - Simple CRUD register (tag ID, name, breed, age, notes). Manual records only — tracking IDs are per session, so cows are not identified from video in this version.
@@ -154,7 +157,7 @@ In single mode the model picks one label per cow (state wins), so a standing cow
 | Landing `/` | Short hero, 3 feature blocks, how-it-works steps, sign up / log in buttons |
 | Sign up / Log in | Simple centred form, clear error messages |
 | Accept invite `/invite/:token` | Workspace name, role, join button |
-| Dashboard | Greeting and quick actions; stat cards (cows detected today, active alerts, cameras online, analyses run); today's herd activity (share bar + table per behaviour); herd signals (lying and eating share, when drinking / eating was last seen); stacked activity chart for the last 24 completed hours; recent alerts and camera status lists. Herd numbers come from **camera monitoring only**: uploaded images and videos have no real capture time, so they are shown on the Analyze page instead. "Cows detected today" = the most cows seen together in one frame today (track IDs restart when a cow leaves the view, so IDs can't be counted as cows). |
+| Dashboard | Greeting and quick actions; stat cards (cows detected today, active alerts, cameras online, analyses run); today's herd activity (share bar + table per behaviour); herd signals (lying and eating share, when eating was last seen); stacked activity chart for the last 24 completed hours; recent alerts and camera status lists. Herd numbers come from **camera monitoring only**: uploaded images and videos have no real capture time, so they are shown on the Analyze page instead. "Cows detected today" = the most cows seen together in one frame today (track IDs restart when a cow leaves the view, so IDs can't be counted as cows). |
 | Analyze | Upload image/video, result preview with numbered boxes (`#3 lying 0.82`), per-cow table for videos (in view from–to, main behaviour, time split bar, link to that cow's detections), detections table with cow IDs. Video times are shown as the position in the video (e.g. `1:24`); the first 20 detections are listed, the rest are in Activity logs |
 | Cameras | Grid of camera cards (1–4 per row by screen width). Each card shows a live snapshot with the cow boxes (refreshed once a second, `LIVE` tag) while the camera runs, otherwise a placeholder saying it is off, connecting or in error (with the reason); below it the name, location (or type) and status. Cards have no buttons: **click a card to open its live view.** "Add camera" (admin): webcam number, stream URL, video link or video upload. |
 | Live view `/cameras/:id` | Cameras are **stopped by default**; opening a stopped camera starts monitoring automatically (once per visit, so a later Stop is kept). Smooth live video (the camera's own frame rate, up to 30 fps) with every cow boxed, numbered and labelled; boxes refresh several times a second; cows in view with confidence; totals since Start (cows tracked, detections, behaviour split); actual video and model rates; start/stop monitoring; edit and delete (admin). Leaving the page keeps the camera monitoring so alerts and the activity log keep working. Opened from a camera card or the dashboard camera list |
@@ -190,7 +193,7 @@ The UI must look like a clean, professional product — not an AI-generated temp
 | Warning | `#9A5B00` |
 | Danger | `#C62828` |
 
-- **Behaviour colours** (charts and box labels): standing `#D9844F`, lying `#D4D4D4`, foraging `#F5B48A`, drinking `#FFDAC0`. All tokens live in `frontend/src/styles/tokens.css`.
+- **Behaviour colours** (charts and box labels): standing `#D9844F`, lying `#D4D4D4`, foraging `#F5B48A`. All tokens live in `frontend/src/styles/tokens.css`.
 - **Buttons:** solid primary, outlined secondary, 6px radius, 36–40px height, no icons inside unless needed.
 - **Cards:** white, 1px border, 8px radius, very light shadow or none.
 - **Layout:** 8px spacing scale, left-aligned headings. Content fills the full width beside the sidebar (no centred max-width column), and wide screens use multi-column grids instead of leaving empty side space.
@@ -218,7 +221,7 @@ analyses           id, workspace_id, user_id, camera_id (nullable), type (image|
 detections         id, workspace_id, analysis_id, camera_id (nullable), frame_index, frame_time, track_id, posture,
                    state, behaviour, confidence, x1, y1, x2, y2 (normalised 0-1), created_at
                    INDEX(workspace_id, frame_time), INDEX(camera_id, frame_time), INDEX(analysis_id, frame_index)
-alert_rules        id, workspace_id, rule_type (lying_ratio|no_foraging|no_drinking), threshold (%),
+alert_rules        id, workspace_id, rule_type (lying_ratio|no_foraging), threshold (%),
                    window_minutes, is_enabled, created_at
 alerts             id, workspace_id, camera_id, rule_id, message, severity (warning|danger),
                    status (open|acknowledged), acknowledged_by, acknowledged_at, created_at

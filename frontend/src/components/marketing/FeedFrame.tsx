@@ -10,7 +10,6 @@ import { Sparkline } from '../ui/DataViz'
 type Box = { id?: number; label: string; conf: number; b: [number, number, number, number] }
 
 const BOXES: Box[] = [
-  { id: 87, label: 'drinking', conf: 0.87, b: [0.4869, 0.3648, 0.5793, 0.7429] },
   { id: 31, label: 'foraging', conf: 0.82, b: [0.0393, 0.484, 0.1786, 0.755] },
   { id: 118, label: 'standing', conf: 0.8, b: [0.603, 0.305, 0.6767, 0.5351] },
   { id: 64, label: 'standing', conf: 0.79, b: [0.3949, 0.2464, 0.5218, 0.3824] },

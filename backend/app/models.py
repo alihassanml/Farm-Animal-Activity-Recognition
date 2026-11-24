@@ -20,16 +20,18 @@ ROLE_ADMIN, ROLE_MEMBER = "admin", "member"
 ROLES = (ROLE_ADMIN, ROLE_MEMBER)
 
 POSTURES = ("standing", "lying")
-STATES = ("foraging", "drinking")
+STATES = ("foraging",)
 BEHAVIOURS = POSTURES + STATES
-# Labels from the old 5-class model. Old database rows may still hold them; they are hidden from
-# charts and shown as "(old data)" in lists. Old model files that still output them load with a warning.
-LEGACY_BEHAVIOURS = ("rumination",)
+# Labels from older models (the 5-class and 4-class ones). Old database rows may still hold them;
+# they are hidden from charts and shown as "(old data)" in lists. Old model files that still output
+# them load with a warning and their boxes are dropped.
+LEGACY_BEHAVIOURS = ("drinking", "rumination")
 
 RULE_LYING_RATIO = "lying_ratio"
 RULE_NO_FORAGING = "no_foraging"
-RULE_NO_DRINKING = "no_drinking"
-RULE_TYPES = (RULE_LYING_RATIO, RULE_NO_FORAGING, RULE_NO_DRINKING)
+# "no_drinking" rules from the 4-class model are removed at startup (see remove_legacy_rules)
+LEGACY_RULE_TYPES = ("no_drinking",)
+RULE_TYPES = (RULE_LYING_RATIO, RULE_NO_FORAGING)
 
 CAMERA_KINDS = ("webcam", "stream", "video")
 

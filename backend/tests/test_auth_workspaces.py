@@ -49,7 +49,7 @@ def test_workspace_isolation_and_roles(make_user):
     ws = owner.create_workspace("Barn A")
     assert owner.get("/api/auth/me").json()["workspaces"][0]["role"] == "admin"
     # default alert rules are created
-    assert len(owner.get(f"/api/workspaces/{ws}/alert-rules").json()) == 3
+    assert len(owner.get(f"/api/workspaces/{ws}/alert-rules").json()) == 2
 
     # outsiders get 404 everywhere, never 403 (no probing)
     for url in (f"/api/workspaces/{ws}", f"/api/workspaces/{ws}/members", f"/api/workspaces/{ws}/cameras",

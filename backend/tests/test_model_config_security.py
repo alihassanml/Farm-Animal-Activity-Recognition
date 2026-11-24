@@ -11,34 +11,45 @@ from app.services.detector import check_names
 
 # ---------- model classes and config ----------
 
-NEW_MODEL = {0: "standing", 1: "lying", 2: "foraging", 3: "drinking"}
+NEW_MODEL = {0: "foraging", 1: "lying", 2: "standing"}  # the trained model (data.yaml order)
+FOUR_CLASS_MODEL = {0: "standing", 1: "lying", 2: "foraging", 3: "drinking"}
 OLD_MODEL = {0: "standing", 1: "lying", 2: "foraging", 3: "drinking", 4: "rumination"}
 
 
-def test_app_uses_four_classes():
-    assert BEHAVIOURS == ("standing", "lying", "foraging", "drinking")
-    assert STATES == ("foraging", "drinking")
+def test_app_uses_three_classes():
+    assert BEHAVIOURS == ("standing", "lying", "foraging")
+    assert STATES == ("foraging",)
     assert set(Behaviour.__args__) == set(BEHAVIOURS)  # type: ignore[attr-defined]
 
 
-def test_four_class_model_passes_loader_check(caplog):
+def test_three_class_model_passes_loader_check(caplog):
     with caplog.at_level(logging.WARNING):
         ignored = check_names(NEW_MODEL, POSTURES + STATES, Path("best.pt"))
     assert ignored == set()
-    assert "rumination" not in caplog.text
+    assert "no longer supported" not in caplog.text
+
+
+def test_old_four_class_model_loads_with_warning(caplog):
+    with caplog.at_level(logging.WARNING):
+        ignored = check_names(FOUR_CLASS_MODEL, POSTURES + STATES, Path("four.pt"))
+    assert ignored == {"drinking"}
+    assert "no longer supported" in caplog.text
 
 
 def test_old_five_class_model_loads_with_warning(caplog):
     with caplog.at_level(logging.WARNING):
         ignored = check_names(OLD_MODEL, POSTURES + STATES, Path("old.pt"))
-    assert ignored == {"rumination"}
+    assert ignored == {"drinking", "rumination"}
     assert "no longer supported" in caplog.text
 
 
 def test_dual_mode_models_pass_loader_check():
     assert check_names({0: "standing", 1: "lying"}, POSTURES, Path("posture.pt")) == set()
-    assert check_names({0: "foraging", 1: "drinking"}, STATES, Path("state.pt")) == set()
-    assert check_names({0: "foraging", 1: "drinking", 2: "rumination"}, STATES, Path("old_state.pt")) == {"rumination"}
+    assert check_names({0: "foraging"}, STATES, Path("state.pt")) == set()
+    assert check_names({0: "foraging", 1: "drinking", 2: "rumination"}, STATES, Path("old_state.pt")) == {
+        "drinking",
+        "rumination",
+    }
 
 
 def test_unknown_class_is_rejected():
@@ -50,7 +61,7 @@ def test_default_conf_threshold_is_045():
     assert Settings.model_fields["conf_threshold"].default == 0.45
     example = (BASE_DIR / ".env.example").read_text(encoding="utf-8")
     assert "CONF_THRESHOLD=0.45" in example.splitlines()
-    assert "single = models/best.pt (4 classes)" in example
+    assert "3 classes: standing, lying, foraging" in example
 
 
 def test_env_example_has_no_real_secret():

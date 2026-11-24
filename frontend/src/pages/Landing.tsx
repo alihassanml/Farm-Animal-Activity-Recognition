@@ -15,7 +15,7 @@ import { BRAND, DEMO_URL } from '../lib/brand'
 
 /* Landing page ("/").
    Every number here comes from the project's own results (README, Explain.md): test-set mAP50
-   of the final 4-class YOLO11s model, CPU frame rate, and the alert check interval.
+   of the final YOLO11s model, CPU frame rate, and the alert check interval.
    Charts marked "example" use illustrative data drawn with the same components as the app. */
 
 const NAV_LINKS = [
@@ -177,8 +177,8 @@ function Hero() {
           </Reveal>
           <Reveal delay={0.12}>
             <p className="mt-6 max-w-prose text-lg text-secondary">
-              {BRAND} connects to your barn cameras, recognises what each cow is doing, and alerts your team when eating,
-              drinking or resting patterns change.
+              {BRAND} connects to your barn cameras, recognises what each cow is doing, and alerts your team when eating
+              or resting patterns change.
             </p>
           </Reveal>
           <Reveal delay={0.18}>
@@ -221,7 +221,7 @@ function BuiltWith() {
 const PROBLEMS = [
   {
     title: 'Health signs get missed',
-    text: 'A cow that eats less, drinks less or lies down far more than usual is often getting sick or lame. Between walk-throughs, nobody sees it.',
+    text: 'A cow that eats less or lies down far more than usual is often getting sick or lame. Between walk-throughs, nobody sees it.',
   },
   {
     title: 'Counting is still done by hand',
@@ -264,11 +264,11 @@ const STEPS = [
   {
     title: 'YOLO detects in real time',
     text: 'A YOLO11 model trained on real barn footage finds every cow, gives it a number while it stays in view, and labels what it is doing.',
-    detail: '4 behaviours, YOLO11s model',
+    detail: '3 behaviours, YOLO11s model',
   },
   {
     title: 'Alerts and insights',
-    text: 'The dashboard shows the day’s activity, and your team is alerted when the herd lies too much or stops eating or drinking.',
+    text: 'The dashboard shows the day’s activity, and your team is alerted when the herd lies too much or stops eating.',
     detail: 'Rules checked every 60 s',
   },
 ]
@@ -308,7 +308,7 @@ function Features() {
             fill
             className="lg:col-span-7 lg:row-span-2"
             title="Behaviour tracking"
-            text="Standing, lying, eating and drinking, for every cow in view, around the clock. See how the herd spent the last 24 hours at a glance."
+            text="Standing, lying and eating, for every cow in view, around the clock. See how the herd spent the last 24 hours at a glance."
           >
             <UiPanel className="flex h-full flex-col p-6">
               <div className="flex items-baseline justify-between gap-4">
@@ -382,7 +382,6 @@ function Features() {
             <UiPanel>
               {[
                 { l: 'Last eating seen', v: '2 min ago' },
-                { l: 'Last drinking seen', v: '14 min ago' },
                 { l: 'Eating today', v: '21% of detections' },
               ].map((r) => (
                 <div key={r.l} className="flex items-center justify-between gap-4 border-b border-line px-4 py-3 text-sm last:border-b-0">
@@ -400,7 +399,7 @@ function Features() {
           >
             <UiPanel>
               {[
-                { m: 'No drinking seen at Water trough in the last 2 hours', at: '4 min ago', tone: 'danger' as const, label: 'High' },
+                { m: 'No foraging seen at Feed bunk in the last 6 hours', at: '4 min ago', tone: 'danger' as const, label: 'High' },
                 { m: '74% of cows lying in Barn A over the last hour (limit 70%)', at: '31 min ago', tone: 'warning' as const, label: 'Medium' },
               ].map((a) => (
                 <div key={a.m} className="flex items-start gap-4 border-b border-line px-4 py-3 last:border-b-0">
@@ -455,7 +454,6 @@ function StackedArea({ className = '' }: { className?: string }) {
     standing: hours.map((h) => 18 + 10 * wave(h, 10, 3) + 8 * wave(h, 17, 2.5)),
     lying: hours.map((h) => 14 + 22 * wave(h, 2, 3.5) + 18 * wave(h, 23, 2.5) + 6 * wave(h, 13, 2)),
     foraging: hours.map((h) => 4 + 16 * wave(h, 7, 1.5) + 14 * wave(h, 18, 1.6)),
-    drinking: hours.map((h) => 2 + 5 * wave(h, 8, 1.5) + 6 * wave(h, 15, 2) + 4 * wave(h, 19, 1.4)),
   }
   const max = hours.reduce((m, i) => Math.max(m, BEHAVIOURS.reduce((s, b) => s + series[b][i], 0)), 0) * 1.08
   const x = (i: number) => (i / 24) * W
@@ -535,7 +533,7 @@ function Metrics() {
           <Metric
             value="0.76"
             label="Detection accuracy (mAP50)"
-            note="Standing, lying, eating and drinking, on the CBVD-5 test videos. Lying improved from 0.47 to 0.88."
+            note="Standing, lying, eating and drinking (old 4-class model), on the CBVD-5 test videos. Lying improved from 0.47 to 0.88."
           >
             <ul className="flex flex-col gap-2 text-xs" aria-label="mAP50 on each test set">
               {MAP50.map((m) => (
@@ -593,7 +591,7 @@ function Metrics() {
           <div className="mt-12 max-w-prose border-t border-line pt-6 text-sm">
             <p className="font-medium text-ink">Known limits</p>
             <ul className="mt-2 flex flex-col gap-1 text-secondary">
-              <li>Drinking is the weakest behaviour: the test set has only 71 drinking cows.</li>
+              <li>The model recognises standing, lying and foraging only. Drinking is not detected.</li>
               <li>On a laptop CPU the model runs at about 2.9 frames a second.</li>
               <li>Cow numbers last for one session only. They cannot follow a named cow across days.</li>
               <li>Rumination is not detected yet. It is planned as future work.</li>

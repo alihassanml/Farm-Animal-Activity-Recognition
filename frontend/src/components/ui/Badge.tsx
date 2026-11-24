@@ -34,7 +34,7 @@ export function Swatch({ behaviour, className = '' }: { behaviour: Behaviour; cl
   )
 }
 
-/** Behaviour label: data-colour swatch plus the name in ink. Old labels (rumination) get a grey swatch. */
+/** Behaviour label: data-colour swatch plus the name in ink. Old labels (drinking, rumination) get a grey swatch. */
 export function BehaviourBadge({ behaviour }: { behaviour: Behaviour | string }) {
   const b = behaviour as Behaviour
   const known = b in BEHAVIOUR_LABEL

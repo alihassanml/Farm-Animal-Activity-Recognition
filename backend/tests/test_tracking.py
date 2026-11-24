@@ -50,10 +50,10 @@ def test_smoothing_ignores_a_single_wrong_frame():
 
 def test_dual_mode_smooths_posture_and_state_separately():
     t = CowTracker(smooth_window=3, joint_labels=False)
-    seq = [("standing", "drinking"), ("standing", None), ("standing", "drinking")]
+    seq = [("standing", "foraging"), ("standing", None), ("standing", "foraging")]
     for posture, state in seq:
         d = t.update([Det(posture, state, 0.9, 0.1, 0.1, 0.3, 0.4)])[0]
-    assert (d.posture, d.state) == ("standing", "drinking")
+    assert (d.posture, d.state) == ("standing", "foraging")
 
 
 def test_vote_prefers_latest_on_tie():
@@ -126,28 +126,28 @@ def test_dashboard_ignores_uploads(make_user):
         db.add(an)
         db.flush()
         db.add_all(
-            Detection(workspace_id=ws, analysis_id=an.id, frame_index=0, frame_time=utcnow(), behaviour="drinking",
-                      state="drinking", confidence=0.9, x1=0, y1=0, x2=0.1, y2=0.1)
+            Detection(workspace_id=ws, analysis_id=an.id, frame_index=0, frame_time=utcnow(), behaviour="foraging",
+                      state="foraging", confidence=0.9, x1=0, y1=0, x2=0.1, y2=0.1)
             for _ in range(5)
         )
         db.commit()
     s = u.get(f"/api/workspaces/{ws}/dashboard/summary").json()
-    assert s["behaviour_counts"]["drinking"] == 0 and s["behaviour_counts"]["lying"] == 1
-    assert s["last_seen"]["drinking"] is None
+    assert s["behaviour_counts"]["foraging"] == 0 and s["behaviour_counts"]["lying"] == 1
+    assert s["last_seen"]["foraging"] is None
     assert s["peak_cows_today"] == 1
     assert s["analyses_total"] == 2  # uploads still count as analyses
 
 
 def test_old_rumination_rows_are_hidden_from_charts(make_user):
-    """Databases from the 5-class model may hold "rumination" rows. No endpoint may crash on them,
-    and the dashboard charts only show the 4 current classes."""
+    """Databases from the 4/5-class models may hold "rumination" or "drinking" rows. No endpoint may crash on
+    them, and the dashboard charts only show the 3 current classes."""
     u = make_user()
     ws = u.create_workspace()
     aid = _camera_session(ws, [1, 1, 1, 2], ["rumination", "rumination", "lying", "standing"])
     s = u.get(f"/api/workspaces/{ws}/dashboard/summary")
     assert s.status_code == 200
     body = s.json()
-    assert set(body["behaviour_counts"]) == {"standing", "lying", "foraging", "drinking"}
+    assert set(body["behaviour_counts"]) == {"standing", "lying", "foraging"}
     assert body["behaviour_counts"]["lying"] == 1 and "rumination" not in body["last_seen"]
     assert all(set(b["counts"]) == set(body["behaviour_counts"]) for b in body["behaviour_over_time"])
     detail = u.get(f"/api/analyses/{aid}")
@@ -155,7 +155,7 @@ def test_old_rumination_rows_are_hidden_from_charts(make_user):
     page = u.get(f"/api/workspaces/{ws}/detections?analysis={aid}")
     assert page.status_code == 200 and page.json()["total"] == 4
     assert u.get(f"/api/workspaces/{ws}/detections/export.csv?analysis={aid}").status_code == 200
-    # the filter only accepts the 4 current classes
+    # the filter only accepts the 3 current classes
     assert u.get(f"/api/workspaces/{ws}/detections?behaviour=rumination").status_code == 422
 
 

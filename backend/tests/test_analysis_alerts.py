@@ -87,8 +87,8 @@ def _seed(ws_id: int, behaviours: list[tuple[str | None, str | None]], minutes_a
 def test_alert_rules_fire_once(make_user):
     u = make_user()
     ws = u.create_workspace()
-    # 40 detections: 80% lying, foraging + drinking present
-    dets = [("lying", None)] * 32 + [("standing", "foraging")] * 4 + [("standing", "drinking")] * 4
+    # 40 detections: 80% lying, foraging present
+    dets = [("lying", None)] * 32 + [("standing", "foraging")] * 8
     cam_id = _seed(ws, dets)
     with SessionLocal() as db:
         cam = db.get(Camera, cam_id)
@@ -111,14 +111,28 @@ def test_alert_rules_fire_once(make_user):
     assert acked["status"] == "acknowledged" and acked["acknowledged_by_name"]
 
 
-def test_no_drinking_rule(make_user):
+def test_no_foraging_rule(make_user):
     u = make_user()
     ws = u.create_workspace()
-    cam_id = _seed(ws, [("standing", "foraging")] * 40, minutes_ago=700)
+    cam_id = _seed(ws, [("standing", None)] * 40 + [("lying", None)] * 40, minutes_ago=300)
     with SessionLocal() as db:
         created = alert_engine.evaluate_camera(db, db.get(Camera, cam_id), utcnow() - timedelta(hours=13))
-        assert [a.severity for a in created] == ["danger"]
-        assert "No drinking" in created[0].message
+        assert [a.severity for a in created] == ["warning"]
+        assert "No foraging" in created[0].message
+
+
+def test_legacy_no_drinking_rules_are_removed(make_user):
+    """Workspaces made for the 4-class model hold a no_drinking rule; startup deletes it, keeping the others."""
+    from app.models import AlertRule
+
+    ws = make_user().create_workspace()
+    with SessionLocal() as db:
+        db.add(AlertRule(workspace_id=ws, rule_type="no_drinking", window_minutes=720))
+        db.commit()
+        assert alert_engine.remove_legacy_rules(db) == 1
+        left = {r.rule_type for r in db.query(AlertRule).filter(AlertRule.workspace_id == ws)}
+        assert left == {"lying_ratio", "no_foraging"}
+        assert alert_engine.remove_legacy_rules(db) == 0
 
 
 def test_detections_list_export_and_dashboard(make_user):
@@ -137,14 +151,14 @@ def test_detections_list_export_and_dashboard(make_user):
     assert len(s["behaviour_over_time"]) == 24
     assert s["cameras_total"] == 1
     assert s["members_total"] == 1 and s["analyses_total"] == 1
-    assert s["last_seen"]["foraging"] is not None and s["last_seen"]["drinking"] is None
+    assert s["last_seen"]["foraging"] is not None and "drinking" not in s["last_seen"]
 
 
 def test_merge_posture_state():
     postures = [Det("lying", None, 0.9, 0.1, 0.1, 0.3, 0.3), Det("standing", None, 0.8, 0.6, 0.6, 0.9, 0.9)]
-    states = [Det(None, "foraging", 0.7, 0.11, 0.1, 0.3, 0.31), Det(None, "drinking", 0.6, 0.4, 0.0, 0.45, 0.05)]
+    states = [Det(None, "foraging", 0.7, 0.11, 0.1, 0.3, 0.31), Det(None, "foraging", 0.6, 0.4, 0.0, 0.45, 0.05)]
     merged = merge_posture_state(postures, states, 0.5)
-    assert [(d.posture, d.state) for d in merged] == [("lying", "foraging"), ("standing", None), (None, "drinking")]
+    assert [(d.posture, d.state) for d in merged] == [("lying", "foraging"), ("standing", None), (None, "foraging")]
     assert merged[0].behaviour == "foraging" and merged[1].behaviour == "standing"
 
 
@@ -168,27 +182,27 @@ def test_image_analysis_with_fake_model(make_user, fake_detector):
     assert {d["behaviour"] for d in body["detections"]} <= set(BEHAVIOURS)
 
 
-def test_alert_rules_with_four_classes(make_user):
-    """A healthy mix of the 4 classes raises nothing; too much lying raises only the lying rule."""
-    assert BEHAVIOURS == ("standing", "lying", "foraging", "drinking")
+def test_alert_rules_with_three_classes(make_user):
+    """A healthy mix of the 3 classes raises nothing; too much lying raises only the lying rule."""
+    assert BEHAVIOURS == ("standing", "lying", "foraging")
     u = make_user()
     ws = u.create_workspace()
-    healthy = [("standing", None)] * 15 + [("lying", None)] * 15 + [(None, "foraging")] * 6 + [(None, "drinking")] * 4
+    healthy = [("standing", None)] * 15 + [("lying", None)] * 15 + [(None, "foraging")] * 10
     cam_id = _seed(ws, healthy)
     with SessionLocal() as db:
         assert alert_engine.evaluate_camera(db, db.get(Camera, cam_id), utcnow() - timedelta(hours=13)) == []
 
     ws2 = make_user().create_workspace()
-    lying = [("lying", None)] * 32 + [(None, "foraging")] * 4 + [(None, "drinking")] * 4
+    lying = [("lying", None)] * 32 + [(None, "foraging")] * 8
     cam2 = _seed(ws2, lying)
     with SessionLocal() as db:
         created = alert_engine.evaluate_camera(db, db.get(Camera, cam2), utcnow() - timedelta(hours=13))
-        # single mode: eating/drinking boxes have no posture, so the ratio is lying / (standing + lying)
+        # single mode: eating boxes have no posture, so the ratio is lying / (standing + lying)
         assert [a.message.split()[0] for a in created] == ["100%"]
 
 
 def test_old_rumination_rows_do_not_count_as_eating(make_user):
-    """Old data from the 5-class model: rumination is not foraging, so the no-foraging rule still fires."""
+    """Old data from the 4/5-class models: rumination and drinking are not foraging, so the no-foraging rule still fires."""
     u = make_user()
     ws = u.create_workspace()
     cam_id = _seed(ws, [("standing", None)] * 20 + [(None, "rumination")] * 10 + [(None, "drinking")] * 10,

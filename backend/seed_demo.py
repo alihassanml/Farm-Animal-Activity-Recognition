@@ -38,21 +38,21 @@ SAMPLE_MINUTES = 2  # one stored frame per camera every 2 minutes keeps the demo
 LEAVE_CHANCE = 0.03  # per sample: a cow stays in view ~1 hour on average, then gets a new ID
 CHANGE_CHANCE = 0.25  # per sample: a behaviour lasts ~8 minutes on average
 
-# Behaviour mix by hour of day: (standing, lying, foraging, drinking)
+# Behaviour mix by hour of day: (standing, lying, foraging)
 DAY_PATTERN = {
-    range(0, 5): (0.20, 0.72, 0.06, 0.02),
-    range(5, 6): (0.35, 0.40, 0.20, 0.05),
-    range(6, 10): (0.30, 0.18, 0.44, 0.08),
-    range(10, 16): (0.32, 0.45, 0.17, 0.06),
-    range(16, 20): (0.30, 0.20, 0.42, 0.08),
-    range(20, 24): (0.22, 0.62, 0.12, 0.04),
+    range(0, 5): (0.21, 0.73, 0.06),
+    range(5, 6): (0.37, 0.42, 0.21),
+    range(6, 10): (0.32, 0.20, 0.48),
+    range(10, 16): (0.34, 0.48, 0.18),
+    range(16, 20): (0.32, 0.22, 0.46),
+    range(20, 24): (0.23, 0.64, 0.13),
 }
-BEHAVIOURS = ("standing", "lying", "foraging", "drinking")
+BEHAVIOURS = ("standing", "lying", "foraging")
 
 CAMERAS = [
     ("Barn A – feed lane", "rtsp://admin:farm2024@192.168.1.21/stream1", "North shed", 12),
     ("Barn A – resting area", "rtsp://admin:farm2024@192.168.1.22/stream1", "North shed", 9),
-    ("Water trough", "rtsp://admin:farm2024@192.168.1.23/stream1", "Yard", 5),
+    ("Yard shelter", "rtsp://admin:farm2024@192.168.1.23/stream1", "Yard", 5),
 ]
 
 ANIMALS = [
@@ -144,13 +144,13 @@ def main() -> None:
             while t <= now:
                 local_hour = (t + timedelta(hours=5)).hour  # Pakistan time (UTC+5)
                 weights = list(mix_for(local_hour))
-                if cam.name == "Water trough":  # mostly standing / drinking cows here
-                    weights = [0.45, 0.05, 0.05, 0.4, 0.05]
+                if cam.name == "Yard shelter":  # mostly standing / lying cows here
+                    weights = [0.55, 0.35, 0.10]
                 if cam.name.endswith("resting area"):
                     weights[2] *= 0.3
                     weights[1] *= 1.4
-                if cam.name == "Water trough" and t > now - timedelta(hours=13):
-                    weights[3] = 0.0  # trough camera: no drinking lately -> demo alert
+                if cam.name == "Yard shelter" and t > now - timedelta(hours=7):
+                    weights[2] = 0.0  # yard camera: no foraging lately -> demo alert
                 in_view = [c for c in in_view if rng.random() > LEAVE_CHANCE]
                 while len(in_view) < max(1, herd + rng.randint(-2, 2)):
                     in_view.append({"id": next_id, "box": random_box(rng), "b": rng.choices(BEHAVIOURS, weights)[0]})
@@ -184,8 +184,8 @@ def main() -> None:
 
         rule = {r.rule_type: r for r in rules}
         db.add_all([
-            Alert(workspace_id=ws.id, camera_id=cameras[2].id, rule_id=rule["no_drinking"].id, severity="danger",
-                  message="No drinking seen on Water trough in the last 12 hours.", created_at=now - timedelta(minutes=25)),
+            Alert(workspace_id=ws.id, camera_id=cameras[2].id, rule_id=rule["no_foraging"].id, severity="warning",
+                  message="No foraging seen on Yard shelter in the last 6 hours.", created_at=now - timedelta(minutes=25)),
             Alert(workspace_id=ws.id, camera_id=cameras[1].id, rule_id=rule["lying_ratio"].id, severity="warning",
                   message="74% of cow detections on Barn A – resting area were lying over the last 1 hour (limit 70%).",
                   created_at=now - timedelta(hours=2, minutes=10)),

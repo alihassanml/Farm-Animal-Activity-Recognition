@@ -306,7 +306,7 @@ function RuleForm({ rule, onClose, onSaved }: { rule: AlertRule | null; onClose:
           step={5}
           value={windowMin}
           onChange={(e) => setWindowMin(e.target.value)}
-          hint={type === 'lying_ratio' ? 'The share is measured over this window.' : `Alert when no ${type === 'no_foraging' ? 'foraging' : 'drinking'} is seen for this long.`}
+          hint={type === 'lying_ratio' ? 'The share is measured over this window.' : 'Alert when no foraging is seen for this long.'}
         />
       </form>
     </Modal>

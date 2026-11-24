@@ -20,7 +20,7 @@ def _utc_iso(d: datetime) -> str:
 UTCDateTime = Annotated[datetime, PlainSerializer(_utc_iso, return_type=str)]
 
 Role = Literal["admin", "member"]
-Behaviour = Literal["standing", "lying", "foraging", "drinking"]
+Behaviour = Literal["standing", "lying", "foraging"]
 assert set(Behaviour.__args__) == set(BEHAVIOURS)  # type: ignore[attr-defined]
 
 
@@ -318,7 +318,7 @@ class AnimalOut(ORM):
 
 # ---------- Alerts ----------
 class AlertRuleIn(BaseModel):
-    rule_type: Literal["lying_ratio", "no_foraging", "no_drinking"]
+    rule_type: Literal["lying_ratio", "no_foraging"]
     threshold: float | None = Field(default=None, ge=1, le=100)
     window_minutes: int = Field(ge=5, le=7 * 24 * 60)
     is_enabled: bool = True
