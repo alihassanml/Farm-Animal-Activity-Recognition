@@ -1,17 +1,20 @@
 """YOLO model loading and inference.
 
 Two modes (MODEL_MODE in .env):
-  single - one 5-class model (standing, lying, foraging, drinking, rumination).
-  dual   - a posture model (standing, lying) + a state model (foraging, drinking, rumination);
+  single - one 4-class model (standing, lying, foraging, drinking).
+  dual   - a posture model (standing, lying) + a state model (foraging, drinking);
            each state box is attached to the posture box it overlaps most (IoU >= MERGE_IOU).
 
 Every detection is reported the same way in both modes:
   posture   = standing | lying | None
-  state     = foraging | drinking | rumination | None
+  state     = foraging | drinking | None
   behaviour = state if there is one, otherwise posture
 
-Note for single mode: the 5-class model picks ONE label per cow (state wins over posture),
-so a lying cow that is ruminating comes back as posture=None, state=rumination.
+Note for single mode: the model picks ONE label per cow (state wins over posture),
+so a standing cow that is eating comes back as posture=None, state=foraging.
+
+Old model files: the earlier 5-class model also had "rumination". It still loads, but its
+rumination boxes are dropped (rumination is no longer supported) and a warning is logged.
 """
 
 import logging
@@ -22,19 +25,18 @@ import cv2
 import numpy as np
 
 from ..config import Settings, get_settings
-from ..models import POSTURES, STATES
+from ..models import LEGACY_BEHAVIOURS, POSTURES, STATES
 
 log = logging.getLogger(__name__)
 
 # BGR colours for box drawing, from the frontend tokens (frontend/src/styles/tokens.css):
-# activity behaviours use the deep peach (--color-peach-600), healthy rumination the deep
-# green (--color-green-600), resting/lying the neutral series grey (--color-series-neutral).
+# activity behaviours use the deep peach (--color-peach-600), resting/lying the neutral
+# series grey (--color-series-neutral).
 _HEX = {
     "standing": "#D9844F",
     "lying": "#D4D4D4",
     "foraging": "#D9844F",
     "drinking": "#D9844F",
-    "rumination": "#6E9F45",
 }
 COLORS_BGR = {k: (int(v[5:7], 16), int(v[3:5], 16), int(v[1:3], 16)) for k, v in _HEX.items()}
 
@@ -84,6 +86,25 @@ def merge_posture_state(postures: list[Det], states: list[Det], min_iou: float) 
     return merged
 
 
+def check_names(names: dict[int, str], expected: tuple[str, ...], path) -> set[str]:
+    """Check a model's class names before using it. Returns the old classes to ignore.
+
+    Old classes (rumination, from the 5-class model) are allowed with a warning;
+    any other unknown class is an error."""
+    found = set(names.values())
+    legacy = found & set(LEGACY_BEHAVIOURS)
+    unknown = found - set(expected) - legacy
+    if unknown:
+        raise ValueError(f"{path.name} has unexpected classes {sorted(unknown)}; expected {expected}")
+    if legacy:
+        log.warning(
+            "%s is an old model with %s. Rumination is no longer supported, so these boxes are "
+            "ignored. Use the new 4-class model (standing, lying, foraging, drinking).",
+            path.name, ", ".join(sorted(legacy)),
+        )
+    return legacy
+
+
 class Detector:
     def __init__(self, settings: Settings):
         from ultralytics import YOLO  # heavy import, keep it out of module import time
@@ -93,24 +114,19 @@ class Detector:
         # Ultralytics predictors are not thread-safe; video and camera workers share these
         # models, so all inference goes through one lock.
         self._lock = threading.Lock()
+        # Classes an old model still outputs but the app no longer supports; their boxes are dropped.
+        self.ignored: set[str] = set()
         if self.mode == "single":
             self.model = YOLO(str(settings.model_path))
-            self._check_names(self.model, POSTURES + STATES, settings.model_path)
+            self.ignored |= check_names(self.model.names, POSTURES + STATES, settings.model_path)
         else:
             self.posture_model = YOLO(str(settings.posture_model_path))
             self.state_model = YOLO(str(settings.state_model_path))
-            self._check_names(self.posture_model, POSTURES, settings.posture_model_path)
-            self._check_names(self.state_model, STATES, settings.state_model_path)
+            self.ignored |= check_names(self.posture_model.names, POSTURES, settings.posture_model_path)
+            self.ignored |= check_names(self.state_model.names, STATES, settings.state_model_path)
         # Warm-up so the first real request isn't slow
         self.detect(np.zeros((480, 640, 3), dtype=np.uint8))
         log.info("Detector ready (mode=%s)", self.mode)
-
-    @staticmethod
-    def _check_names(model, expected: tuple[str, ...], path) -> None:
-        names = set(model.names.values())
-        unknown = names - set(expected)
-        if unknown:
-            raise ValueError(f"{path.name} has unexpected classes {sorted(unknown)}; expected {expected}")
 
     def _run(self, model, frame: np.ndarray) -> list[tuple[str, float, float, float, float, float]]:
         res = model.predict(
@@ -121,7 +137,10 @@ class Detector:
         for (x1, y1, x2, y2), c, k in zip(
             res.boxes.xyxy.tolist(), res.boxes.conf.tolist(), res.boxes.cls.tolist()
         ):
-            out.append((model.names[int(k)], float(c), x1 / w, y1 / h, x2 / w, y2 / h))
+            name = model.names[int(k)]
+            if name in self.ignored:
+                continue
+            out.append((name, float(c), x1 / w, y1 / h, x2 / w, y2 / h))
         return out
 
     def detect(self, frame_bgr: np.ndarray) -> list[Det]:

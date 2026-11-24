@@ -20,8 +20,11 @@ ROLE_ADMIN, ROLE_MEMBER = "admin", "member"
 ROLES = (ROLE_ADMIN, ROLE_MEMBER)
 
 POSTURES = ("standing", "lying")
-STATES = ("foraging", "drinking", "rumination")
+STATES = ("foraging", "drinking")
 BEHAVIOURS = POSTURES + STATES
+# Labels from the old 5-class model. Old database rows may still hold them; they are hidden from
+# charts and shown as "(old data)" in lists. Old model files that still output them load with a warning.
+LEGACY_BEHAVIOURS = ("rumination",)
 
 RULE_LYING_RATIO = "lying_ratio"
 RULE_NO_FORAGING = "no_foraging"

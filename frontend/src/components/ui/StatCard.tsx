@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { StatusDot } from './Badge'
 
 type Tone = 'neutral' | 'danger' | 'success'
 
@@ -14,15 +13,12 @@ interface Props {
   children?: ReactNode
 }
 
-/** One KPI: label, big Geist Mono number, short hint. A status dot marks danger / healthy states. */
+/** One KPI: label, big Geist Mono number, short hint. Danger states colour the number. */
 export function StatCard({ label, value, hint, tone = 'neutral', to, children }: Props) {
   const body = (
     <>
-      <p className="flex items-center gap-2 text-sm text-secondary">
-        {tone !== 'neutral' && <StatusDot tone={tone} />}
-        {label}
-      </p>
-      <p className="numeric mt-4 text-metric text-ink">{value}</p>
+      <p className="text-sm text-secondary">{label}</p>
+      <p className={`numeric mt-4 text-metric ${tone === 'danger' ? 'text-critical' : 'text-ink'}`}>{value}</p>
       {children && <div className="mt-4">{children}</div>}
       {hint && <p className="mt-2 text-xs text-muted">{hint}</p>}
     </>

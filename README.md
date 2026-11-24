@@ -3,7 +3,7 @@
 Final Year Project — BSCS, Department of Computer Science, Lahore Garrison University
 Team: Fahad Moin, Faris Ali · Supervisor: Ahsan Raza
 
-A web system that detects cows in farm camera images and videos and recognises five behaviours: **standing, lying, foraging, drinking, rumination**. Farm teams work inside shared workspaces, see activity on a dashboard, and get alerts when herd behaviour looks abnormal.
+A web system that detects cows in farm camera images and videos and recognises four behaviours: **standing, lying, foraging, drinking**. Farm teams work inside shared workspaces, see activity on a dashboard, and get alerts when herd behaviour looks abnormal.
 
 ---
 
@@ -14,7 +14,7 @@ Image / Video / Camera  →  YOLO11 detection  →  Cow tracking (IDs)  →  Beh
                                                         └──────────→  Live view (WebSocket video with boxes)
 ```
 
-- **Model:** YOLO11 (Ultralytics), fine-tuned on the CBVD-5 dataset. One 5-class model, or a posture + state model pair.
+- **Model:** YOLO11s (Ultralytics), 4 classes, confidence threshold 0.45. One 4-class model, or a posture + state model pair.
 - **Backend:** FastAPI + SQLite3 (SQLAlchemy ORM), background workers for videos and cameras.
 - **Frontend:** React (Vite) + TypeScript + Tailwind CSS.
 
@@ -22,7 +22,7 @@ Image / Video / Camera  →  YOLO11 detection  →  Cow tracking (IDs)  →  Beh
 
 | Area | What it does | Details |
 |---|---|---|
-| Detection | Finds every cow and labels it standing, lying, foraging, drinking or rumination | §2 |
+| Detection | Finds every cow and labels it standing, lying, foraging or drinking | §2 |
 | Tracking | Gives each cow a number (`#1`, `#2`, …) that stays the same across frames, with label smoothing | §2 |
 | Analyze | Image upload → instant annotated result; video upload → background job with progress and a per-cow table | §3, §4 |
 | Cameras | Webcam, CCTV/IP stream or looping recorded video, shown as cards with a live snapshot; click a card to watch live | §3, §4 |
@@ -38,28 +38,48 @@ Image / Video / Camera  →  YOLO11 detection  →  Cow tracking (IDs)  →  Beh
 
 ## 2. Model
 
-**Dataset:** CBVD-5 (Kaggle, `fandaoerji/cbvd-5cow-behavior-video-dataset`). AVA-format labels, 3,199 annotated keyframes, 25,324 cow boxes. Split **by video** (70/15/15) to avoid leakage.
+**Datasets:** CBVD-5 (Kaggle, `fandaoerji/cbvd-5cow-behavior-video-dataset`; AVA-format labels, 3,199 annotated keyframes, 25,324 cow boxes) and a second barn (Beef Cattle dataset). Test sets are split **by video** to avoid leakage.
 
-**Baseline results** (YOLO11s, 640px, test set):
+**Final model:** YOLO11s, 4 classes (standing, lying, foraging, drinking), confidence threshold **0.45**.
 
-| Class | mAP50 | mAP50-95 | F1 |
-|---|---|---|---|
-| standing | 0.672 | 0.313 | 0.691 |
-| lying | 0.474 | 0.215 | 0.476 |
-| foraging | 0.855 | 0.564 | 0.833 |
-| drinking | 0.605 | 0.277 | 0.585 |
-| rumination | 0.566 | 0.300 | 0.601 |
-| **all** | **0.635** | **0.334** | **0.641** |
+**Why 4 classes:** the client rejected the old 5-class model (mAP50 0.635). Rumination was removed because it conflicted with lying: the same cow had two labels. Rumination is future work.
 
-**Improved approach (in progress):** two models instead of one, because a cow has a posture *and* a state at the same time (e.g. lying + ruminating).
+**Results** (mAP50, test set, split by video):
+
+| Test set | Final model (4 classes) | Old model (5 classes) |
+|---|---|---|
+| CBVD-5 | **0.762** | 0.635 |
+| Second barn (Beef Cattle dataset) | **0.918** | n/a |
+| Both datasets combined | **0.769** | n/a |
+
+Per class (CBVD-5 test set):
+
+| Class | Final model mAP50 | Old model mAP50 |
+|---|---|---|
+| standing | TODO: not supplied yet | 0.672 |
+| lying | **0.875** | 0.474 |
+| foraging | TODO: not supplied yet | 0.855 |
+| drinking | TODO: not supplied yet | 0.605 |
+| rumination | removed (future work) | 0.566 |
+
+**Why YOLO11s:** it was compared with YOLO11m and YOLOv8s. YOLO11s gave the fewest false boxes (0.58 per image) and is the smallest and fastest.
+
+**Known limits:**
+- Drinking is the weakest class: the test set has only 71 drinking cows.
+- On a laptop CPU the model runs at about **2.9 FPS**.
+- Tracking IDs last one session only. They cannot follow a named cow across days.
+
+**Old model files:** a 5-class `best.pt` still loads. The backend logs a warning that rumination is no longer supported and ignores its rumination boxes. Old database rows with `rumination` are hidden from charts and shown as "Rumination (old data)" in lists.
+
+**Dual mode (optional):** two models instead of one, because a cow has a posture *and* a state at the same time (e.g. standing + eating).
 
 - `best_posture.pt` → standing, lying
-- `best_state.pt` → foraging, drinking, rumination
+- `best_state.pt` → foraging, drinking
 
-The backend must support both modes through config:
+The backend supports both modes through config:
 
 ```
-MODEL_MODE=single   # uses models/best.pt (5 classes)
+MODEL_MODE=single   # uses models/best.pt (4 classes)
 MODEL_MODE=dual     # uses models/best_posture.pt + models/best_state.pt, merged by IoU ≥ 0.5
 ```
 
@@ -70,12 +90,10 @@ Both modes write the same three columns, so dashboards and alerts don't care whi
 | Column | Value |
 |---|---|
 | `posture` | `standing` / `lying` / empty |
-| `state` | `foraging` / `drinking` / `rumination` / empty |
+| `state` | `foraging` / `drinking` / empty |
 | `behaviour` | `state` if present, otherwise `posture` |
 
-In single mode the 5-class model picks one label per cow (state wins), so a lying cow that is ruminating is stored as `posture` empty, `state = rumination`. Lying ratios are therefore lower in single mode than in dual mode. A state box that overlaps no posture box in dual mode is kept with an empty `posture`.
-
-**Known limit:** rumination is jaw movement over time, so single-frame accuracy is limited. A temporal model is future work.
+In single mode the model picks one label per cow (state wins), so a standing cow that is eating is stored as `posture` empty, `state = foraging`. The lying-ratio alert therefore uses only cows with a posture (lying / (standing + lying)). A state box that overlaps no posture box in dual mode is kept with an empty `posture`.
 
 **Cow tracking (no extra model):** in videos and camera streams every cow gets an ID (`#1`, `#2`, …) that stays the same from frame to frame (`services/tracker.py`). Boxes are matched to existing tracks in two passes, both solved with the Hungarian algorithm: box overlap (IoU ≥ `TRACK_IOU`), then box-centre distance for cows whose box changed shape (e.g. standing up). A track survives `TRACK_MAX_LOST` missed frames. Each cow's label is the majority over its last `SMOOTH_WINDOW` frames, so one wrong frame doesn't flip it. A cow counts in summaries once it was tracked in 3 frames (shorter tracks are flickering boxes). IDs are numbered per video / camera session and are not identities: a cow that leaves the view and returns gets a new ID. In images, cows are numbered left to right.
 
@@ -136,7 +154,7 @@ In single mode the 5-class model picks one label per cow (state wins), so a lyin
 | Landing `/` | Short hero, 3 feature blocks, how-it-works steps, sign up / log in buttons |
 | Sign up / Log in | Simple centred form, clear error messages |
 | Accept invite `/invite/:token` | Workspace name, role, join button |
-| Dashboard | Greeting and quick actions; stat cards (cows detected today, active alerts, cameras online, analyses run); today's herd activity (share bar + table per behaviour); herd signals (lying and eating share, when drinking / eating / rumination was last seen); stacked activity chart for the last 24 completed hours; recent alerts and camera status lists. Herd numbers come from **camera monitoring only**: uploaded images and videos have no real capture time, so they are shown on the Analyze page instead. "Cows detected today" = the most cows seen together in one frame today (track IDs restart when a cow leaves the view, so IDs can't be counted as cows). |
+| Dashboard | Greeting and quick actions; stat cards (cows detected today, active alerts, cameras online, analyses run); today's herd activity (share bar + table per behaviour); herd signals (lying and eating share, when drinking / eating was last seen); stacked activity chart for the last 24 completed hours; recent alerts and camera status lists. Herd numbers come from **camera monitoring only**: uploaded images and videos have no real capture time, so they are shown on the Analyze page instead. "Cows detected today" = the most cows seen together in one frame today (track IDs restart when a cow leaves the view, so IDs can't be counted as cows). |
 | Analyze | Upload image/video, result preview with numbered boxes (`#3 lying 0.82`), per-cow table for videos (in view from–to, main behaviour, time split bar, link to that cow's detections), detections table with cow IDs. Video times are shown as the position in the video (e.g. `1:24`); the first 20 detections are listed, the rest are in Activity logs |
 | Cameras | Grid of camera cards (1–4 per row by screen width). Each card shows a live snapshot with the cow boxes (refreshed once a second, `LIVE` tag) while the camera runs, otherwise a placeholder saying it is off, connecting or in error (with the reason); below it the name, location (or type) and status. Cards have no buttons: **click a card to open its live view.** "Add camera" (admin): webcam number, stream URL, video link or video upload. |
 | Live view `/cameras/:id` | Cameras are **stopped by default**; opening a stopped camera starts monitoring automatically (once per visit, so a later Stop is kept). Smooth live video (the camera's own frame rate, up to 30 fps) with every cow boxed, numbered and labelled; boxes refresh several times a second; cows in view with confidence; totals since Start (cows tracked, detections, behaviour split); actual video and model rates; start/stop monitoring; edit and delete (admin). Leaving the page keeps the camera monitoring so alerts and the activity log keep working. Opened from a camera card or the dashboard camera list |
@@ -172,8 +190,7 @@ The UI must look like a clean, professional product — not an AI-generated temp
 | Warning | `#9A5B00` |
 | Danger | `#C62828` |
 
-- **Behaviour colours** (charts and box labels): standing `#2E6FB0`, lying `#7A5AA6`, foraging `#2E7D32`, drinking `#0B7676`, rumination `#9A5B00`.
-  Warning, drinking and rumination were darkened from `#B26A00` / `#0F8A8A` so they pass 4.5:1. All tokens live in `frontend/src/styles/tokens.css`.
+- **Behaviour colours** (charts and box labels): standing `#D9844F`, lying `#D4D4D4`, foraging `#F5B48A`, drinking `#FFDAC0`. All tokens live in `frontend/src/styles/tokens.css`.
 - **Buttons:** solid primary, outlined secondary, 6px radius, 36–40px height, no icons inside unless needed.
 - **Cards:** white, 1px border, 8px radius, very light shadow or none.
 - **Layout:** 8px spacing scale, left-aligned headings. Content fills the full width beside the sidebar (no centred max-width column), and wide screens use multi-column grids instead of leaving empty side space.
@@ -341,7 +358,7 @@ Farm Animal Activity Recognition/
 │   └── package.json
 ├── Notebook/
 │   ├── Notebook.ipynb         # CBVD-5 -> YOLO conversion + YOLO11s training (Kaggle)
-│   └── model/best.pt          # trained 5-class weights
+│   └── model/best.pt          # trained weights (final model: 4 classes)
 └── README.md
 ```
 
@@ -360,7 +377,7 @@ run.bat        # Windows: double-click, or run from cmd. Opens a Backend and a F
 
 Then open http://localhost:5173. Ports 8000 and 5173 must be free (the setup check tells you if they aren't). The quick start runs the backend without auto-reload, which is more stable for demos; use the manual command below while developing.
 
-**Demo data (for presentations):** `cd backend && python seed_demo.py` creates the account **demo@farm.local / demo12345** with a "Green Valley Dairy" workspace: 3 cameras, 8 animals, 2 open alerts and 24 hours of realistic herd activity (feeding in the morning and evening, resting and rumination at night). Run it again at any time to refresh the last 24 hours.
+**Demo data (for presentations):** `cd backend && python seed_demo.py` creates the account **demo@farm.local / demo12345** with a "Green Valley Dairy" workspace: 3 cameras, 8 animals, 2 open alerts and 24 hours of realistic herd activity (feeding in the morning and evening, resting at night). Run it again at any time to refresh the last 24 hours.
 
 Manual steps, if you prefer:
 
@@ -387,7 +404,7 @@ MODEL_MODE=single
 MODEL_PATH=models/best.pt
 POSTURE_MODEL_PATH=models/best_posture.pt
 STATE_MODEL_PATH=models/best_state.pt
-CONF_THRESHOLD=0.35
+CONF_THRESHOLD=0.45
 MERGE_IOU=0.5                  # dual mode: posture/state boxes of the same cow
 INFERENCE_IMGSZ=640
 TRACK_IOU=0.3
@@ -416,13 +433,27 @@ npm install        # react-router-dom recharts lucide-react @fontsource-variable
 npm run dev        # http://localhost:5173 — /api is proxied to the backend, so the auth cookie is same-origin
 ```
 
+**Docker (optional)**
+```bash
+cp Notebook/model/best.pt backend/models/best.pt     # or put the final model there yourself
+echo "JWT_SECRET=$(python -c 'import secrets; print(secrets.token_urlsafe(48))')" > .env
+docker compose up --build                            # then open http://localhost:8080
+```
+nginx serves the frontend and forwards `/api` (including the live-view WebSocket) to the backend, so both share one origin. Data is kept in the `farm-data` volume. For HTTPS, add `COOKIE_SECURE=true` and `FRONTEND_URL=https://your-domain` to `.env`.
+
 **Tests and checks**
 ```bash
-cd backend && pip install -r requirements-dev.txt && pytest      # uses a temp DB; inference tests need models/best.pt
-cd frontend && npm run lint && npm run build
+cd backend && pip install -r requirements-dev.txt && pytest -q   # temp DB; no model file needed (a few real-model tests are skipped without models/best.pt)
+cd frontend && npx tsc -b && npm run lint && npm run build
 ```
 
-Auth uses an httpOnly, `SameSite=Lax` cookie. In production, serve the built frontend and the API from the same origin over HTTPS and set `COOKIE_SECURE=true`.
+**Security**
+
+- `JWT_SECRET` is never committed. `.env.example` only has the placeholder `change-me`, and the server refuses to start with it. `run.sh` / `run.bat` create `backend/.env` with a random secret.
+- **HTTPS:** set `COOKIE_SECURE=true` in `backend/.env` whenever the site is served over HTTPS, so the login cookie is only sent over encrypted connections. Keep it `false` for local `http://` development, or login will not work.
+- Auth uses an httpOnly, `SameSite=Lax` cookie. In production, serve the built frontend and the API from the same origin over HTTPS.
+- The camera live-view WebSocket only accepts pages from `FRONTEND_URL` (other origins are closed with code 4403). Set `FRONTEND_URL` to the address people open in the browser.
+- Login is rate limited: after 10 failed attempts in 10 minutes for the same IP address and email, the API returns 429 until the window passes.
 
 ---
 

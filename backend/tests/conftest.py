@@ -7,6 +7,10 @@ import pytest
 
 BACKEND = Path(__file__).resolve().parent.parent
 _TMP = Path(tempfile.mkdtemp(prefix="farm-test-"))
+# TEST_MODEL_PATH=missing.pt runs the suite as on a fresh clone (no trained model).
+_MODEL = Path(os.environ.get("TEST_MODEL_PATH") or BACKEND / "models" / "best.pt")
+FRONTEND_URL = "http://localhost:5173"
+ORIGIN = {"origin": FRONTEND_URL}  # header for camera WebSocket connections
 
 # Settings are read once, so configure the environment before the app is imported.
 os.environ.update(
@@ -14,8 +18,9 @@ os.environ.update(
     UPLOAD_DIR=str(_TMP / "uploads"),
     JWT_SECRET="test-secret-0123456789-abcdefghij",
     MODEL_MODE="single",
-    MODEL_PATH=str(BACKEND / "models" / "best.pt"),
+    MODEL_PATH=str(_MODEL),
     ALERT_CHECK_SECONDS="3600",
+    FRONTEND_URL=FRONTEND_URL,
     LOG_DIR=str(_TMP / "logs"),
 )
 
@@ -23,8 +28,30 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
 
-MODEL_AVAILABLE = (BACKEND / "models" / "best.pt").exists()
+MODEL_AVAILABLE = _MODEL.exists()
 needs_model = pytest.mark.skipif(not MODEL_AVAILABLE, reason="models/best.pt not present")
+
+
+class FakeDetector:
+    """Stands in for the YOLO model: returns fixed 4-class detections, so tests need no .pt file."""
+
+    mode = "single"
+
+    def detect(self, frame):
+        from app.services.detector import Det
+
+        return [
+            Det("standing", None, 0.9, 0.1, 0.1, 0.3, 0.5),
+            Det(None, "foraging", 0.8, 0.5, 0.2, 0.7, 0.6),
+        ]
+
+
+@pytest.fixture
+def fake_detector(monkeypatch):
+    """Use FakeDetector wherever the app asks for the model."""
+    fake = FakeDetector()
+    monkeypatch.setattr("app.routers.analysis.get_detector", lambda: fake)
+    return fake
 
 
 @pytest.fixture(scope="session")

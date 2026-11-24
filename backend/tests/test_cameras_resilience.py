@@ -15,7 +15,7 @@ from app.config import ConfigError, get_settings
 from app.main import app
 from app.services.sources import LiveSource, SourceError, VideoSource, validate_source
 
-from .conftest import needs_model
+from .conftest import ORIGIN, needs_model
 
 
 def make_video(path: Path, frames: int = 10, fps: int = 10) -> Path:
@@ -251,7 +251,7 @@ def test_live_websocket_streams_frames_and_status(make_user, tmp_path):
     video = make_video(tmp_path / "ws.avi", frames=60, fps=25)
     cam = u.post(f"/api/workspaces/{ws_id}/cameras/video", data={"name": "Socket"},
                  files={"file": ("ws.avi", video.read_bytes(), "video/x-msvideo")}).json()
-    with u.client.websocket_connect(f"/api/cameras/{cam['id']}/ws") as sock:
+    with u.client.websocket_connect(f"/api/cameras/{cam['id']}/ws", headers=ORIGIN) as sock:
         first = sock.receive_json()
         assert first["type"] == "status" and first["active"] is False and first["status"] == "stopped"
         u.post(f"/api/cameras/{cam['id']}/start")
@@ -274,14 +274,47 @@ def test_live_websocket_rejects_strangers(make_user):
     owner = make_user()
     ws_id = owner.create_workspace()
     cam = owner.post(f"/api/workspaces/{ws_id}/cameras", json={"name": "Private", "source": "0"}).json()
-    with TestClient(app).websocket_connect(f"/api/cameras/{cam['id']}/ws") as sock:  # not logged in
+    with TestClient(app).websocket_connect(f"/api/cameras/{cam['id']}/ws", headers=ORIGIN) as sock:  # not logged in
         with pytest.raises(WebSocketDisconnect) as e:
             sock.receive_text()
         assert e.value.code == 4401
-    with make_user().client.websocket_connect(f"/api/cameras/{cam['id']}/ws") as sock:  # other workspace
+    with make_user().client.websocket_connect(f"/api/cameras/{cam['id']}/ws", headers=ORIGIN) as sock:  # other workspace
         with pytest.raises(WebSocketDisconnect) as e:
             sock.receive_text()
         assert e.value.code == 4404
+
+
+def test_live_websocket_checks_origin(make_user):
+    owner = make_user()
+    ws_id = owner.create_workspace()
+    cam = owner.post(f"/api/workspaces/{ws_id}/cameras", json={"name": "Barn", "source": "0"}).json()
+    url = f"/api/cameras/{cam['id']}/ws"
+    # another website, or no Origin at all: refused even with a valid login cookie
+    for headers in ({"origin": "https://evil.example"}, {"origin": "http://localhost:9999"}, {}):
+        with owner.client.websocket_connect(url, headers=headers) as sock:
+            with pytest.raises(WebSocketDisconnect) as e:
+                sock.receive_text()
+            assert e.value.code == 4403, headers
+    # our own frontend (also when opened as 127.0.0.1) is let through
+    for origin in ("http://localhost:5173", "http://127.0.0.1:5173"):
+        with owner.client.websocket_connect(url, headers={"origin": origin}) as sock:
+            assert sock.receive_json()["type"] == "status"
+
+
+def test_origin_allowed_rules():
+    from app.security import origin_allowed
+
+    front = "http://localhost:5173"
+    assert origin_allowed("http://localhost:5173", front)
+    assert origin_allowed("http://localhost:5173/", front)
+    assert origin_allowed("http://127.0.0.1:5173", front)
+    assert not origin_allowed(None, front)
+    assert not origin_allowed("", front)
+    assert not origin_allowed("null", front)
+    assert not origin_allowed("https://localhost:5173", front)
+    assert not origin_allowed("http://localhost.evil.com:5173", front)
+    assert origin_allowed("https://farm.example.com", "https://farm.example.com")
+    assert not origin_allowed("https://evil.example.com", "https://farm.example.com")
 
 
 def test_video_source_waits_for_each_frame(tmp_path):

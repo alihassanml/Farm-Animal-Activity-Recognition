@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -20,6 +20,7 @@ from ..schemas import (
     UserOut,
     WorkspaceSummary,
 )
+from ..security import login_limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -46,10 +47,21 @@ def signup(body: SignupIn, response: Response, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=MeOut)
-def login(body: LoginIn, response: Response, db: Session = Depends(get_db)):
+def login(body: LoginIn, request: Request, response: Response, db: Session = Depends(get_db)):
+    # At most 10 failed attempts per 10 minutes for the same IP address and email.
+    ip = request.client.host if request.client else "unknown"
+    wait = login_limiter.retry_after(ip, body.email)
+    if wait:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"Too many failed login attempts. Try again in {max(1, round(wait / 60))} minute(s).",
+            headers={"Retry-After": str(wait)},
+        )
     user = db.scalar(select(User).where(User.email == body.email))
     if user is None or not verify_password(body.password, user.password_hash):
+        login_limiter.failed(ip, body.email)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong email or password")
+    login_limiter.succeeded(ip, body.email)
     set_auth_cookie(response, user.id)
     return _me(db, user)
 

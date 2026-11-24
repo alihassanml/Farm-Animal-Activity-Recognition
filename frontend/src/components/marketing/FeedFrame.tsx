@@ -1,6 +1,5 @@
 import barn1600 from '../../assets/feed/barn-1600.webp'
 import barn960 from '../../assets/feed/barn-960.webp'
-import { StatusDot } from '../ui/Badge'
 import { Sparkline } from '../ui/DataViz'
 
 /**
@@ -38,10 +37,7 @@ export function FeedFrame({ className = '', eager = true }: { className?: string
           <span className="truncate text-xs text-secondary">Water trough, south side</span>
         </div>
         <div className="flex shrink-0 items-center gap-3 text-xs text-secondary">
-          <span className="flex items-center gap-2">
-            <StatusDot tone="success" />
-            Live
-          </span>
+          <span>Live</span>
           <span className="numeric hidden text-muted sm:inline">18:00:03</span>
         </div>
       </div>
@@ -91,10 +87,7 @@ export function FeedFrame({ className = '', eager = true }: { className?: string
         </div>
         <div className="px-4 py-3">
           <p className="text-xs text-muted">Herd</p>
-          <p className="mt-2 flex items-center gap-2 text-sm text-ink">
-            <StatusDot tone="success" />
-            Healthy
-          </p>
+          <p className="mt-2 text-sm text-ink">Healthy</p>
         </div>
       </figcaption>
     </figure>

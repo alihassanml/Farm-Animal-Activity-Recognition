@@ -9,9 +9,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import COOKIE_NAME, Access, get_current_user, get_owned, user_from_token, workspace_admin, workspace_member
+from ..config import get_settings
 from ..database import SessionLocal, get_db
 from ..models import Camera, User
 from ..schemas import CameraIn, CameraLive, CameraOut, CameraUpdate, LiveCow, LiveSession, LiveStatus, _clean_name
+from ..security import origin_allowed
 from ..services.camera_worker import CameraWorker, camera_manager
 from ..services.sources import SourceError, probe_video, validate_source
 from ..services.storage import VIDEO_EXT, remove_file, save_upload
@@ -174,8 +176,15 @@ def _view_access_code(token: str | None, camera_id: int) -> int:
 async def camera_live_ws(websocket: WebSocket, camera_id: int):
     """Live view stream. Binary messages: JPEG frames with boxes drawn (newest only, so a slow
     connection skips frames instead of falling behind). Text messages: LiveStatus JSON, twice a second.
-    Close codes: 4401 not logged in, 4404 camera not found or no access."""
+    Close codes: 4403 page not from FRONTEND_URL, 4401 not logged in, 4404 camera not found or no access."""
     await websocket.accept()
+    # Browsers send the auth cookie with WebSockets from any site, and CORS does not cover them,
+    # so only accept connections opened by our own frontend.
+    origin = websocket.headers.get("origin")
+    if not origin_allowed(origin, get_settings().frontend_url):
+        log.warning("Live view of camera %s refused: origin %r is not FRONTEND_URL", camera_id, origin)
+        await websocket.close(code=4403)
+        return
     token = websocket.cookies.get(COOKIE_NAME)
     code = await run_in_threadpool(_view_access_code, token, camera_id)
     if code:

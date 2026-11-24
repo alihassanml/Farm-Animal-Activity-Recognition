@@ -38,16 +38,16 @@ SAMPLE_MINUTES = 2  # one stored frame per camera every 2 minutes keeps the demo
 LEAVE_CHANCE = 0.03  # per sample: a cow stays in view ~1 hour on average, then gets a new ID
 CHANGE_CHANCE = 0.25  # per sample: a behaviour lasts ~8 minutes on average
 
-# Behaviour mix by hour of day: (standing, lying, foraging, drinking, rumination)
+# Behaviour mix by hour of day: (standing, lying, foraging, drinking)
 DAY_PATTERN = {
-    range(0, 5): (0.12, 0.52, 0.04, 0.01, 0.31),
-    range(5, 6): (0.30, 0.30, 0.20, 0.05, 0.15),
-    range(6, 10): (0.24, 0.12, 0.44, 0.08, 0.12),
-    range(10, 16): (0.24, 0.30, 0.16, 0.05, 0.25),
-    range(16, 20): (0.26, 0.12, 0.42, 0.08, 0.12),
-    range(20, 24): (0.16, 0.42, 0.08, 0.03, 0.31),
+    range(0, 5): (0.20, 0.72, 0.06, 0.02),
+    range(5, 6): (0.35, 0.40, 0.20, 0.05),
+    range(6, 10): (0.30, 0.18, 0.44, 0.08),
+    range(10, 16): (0.32, 0.45, 0.17, 0.06),
+    range(16, 20): (0.30, 0.20, 0.42, 0.08),
+    range(20, 24): (0.22, 0.62, 0.12, 0.04),
 }
-BEHAVIOURS = ("standing", "lying", "foraging", "drinking", "rumination")
+BEHAVIOURS = ("standing", "lying", "foraging", "drinking")
 
 CAMERAS = [
     ("Barn A – feed lane", "rtsp://admin:farm2024@192.168.1.21/stream1", "North shed", 12),

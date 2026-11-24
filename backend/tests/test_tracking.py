@@ -50,10 +50,10 @@ def test_smoothing_ignores_a_single_wrong_frame():
 
 def test_dual_mode_smooths_posture_and_state_separately():
     t = CowTracker(smooth_window=3, joint_labels=False)
-    seq = [("lying", "rumination"), ("lying", None), ("lying", "rumination")]
+    seq = [("standing", "drinking"), ("standing", None), ("standing", "drinking")]
     for posture, state in seq:
         d = t.update([Det(posture, state, 0.9, 0.1, 0.1, 0.3, 0.4)])[0]
-    assert (d.posture, d.state) == ("lying", "rumination")
+    assert (d.posture, d.state) == ("standing", "drinking")
 
 
 def test_vote_prefers_latest_on_tie():
@@ -101,14 +101,14 @@ def test_analysis_detail_has_cow_summaries_and_cow_filter(make_user):
     u = make_user()
     ws = u.create_workspace()
     aid = _camera_session(
-        ws, [1, 1, 1, 1, 2, 2, 2, 3], ["lying", "lying", "rumination", "lying", "foraging", "foraging", "foraging", "lying"]
+        ws, [1, 1, 1, 1, 2, 2, 2, 3], ["lying", "lying", "standing", "lying", "foraging", "foraging", "foraging", "lying"]
     )
     d = u.get(f"/api/analyses/{aid}").json()
     assert d["cow_count"] == 2  # cow 3 was seen in one frame only: a flicker, not a cow
     assert [c["track_id"] for c in d["cows"]] == [1, 2]
     first = d["cows"][0]
     assert first["track_id"] == 1 and first["detections"] == 4 and first["main_behaviour"] == "lying"
-    assert first["behaviour_counts"] == {"lying": 3, "rumination": 1}
+    assert first["behaviour_counts"] == {"lying": 3, "standing": 1}
     assert d["detections"][0]["track_id"] == 1
 
     page = u.get(f"/api/workspaces/{ws}/detections?analysis={aid}&cow=2").json()
@@ -136,6 +136,27 @@ def test_dashboard_ignores_uploads(make_user):
     assert s["last_seen"]["drinking"] is None
     assert s["peak_cows_today"] == 1
     assert s["analyses_total"] == 2  # uploads still count as analyses
+
+
+def test_old_rumination_rows_are_hidden_from_charts(make_user):
+    """Databases from the 5-class model may hold "rumination" rows. No endpoint may crash on them,
+    and the dashboard charts only show the 4 current classes."""
+    u = make_user()
+    ws = u.create_workspace()
+    aid = _camera_session(ws, [1, 1, 1, 2], ["rumination", "rumination", "lying", "standing"])
+    s = u.get(f"/api/workspaces/{ws}/dashboard/summary")
+    assert s.status_code == 200
+    body = s.json()
+    assert set(body["behaviour_counts"]) == {"standing", "lying", "foraging", "drinking"}
+    assert body["behaviour_counts"]["lying"] == 1 and "rumination" not in body["last_seen"]
+    assert all(set(b["counts"]) == set(body["behaviour_counts"]) for b in body["behaviour_over_time"])
+    detail = u.get(f"/api/analyses/{aid}")
+    assert detail.status_code == 200 and detail.json()["behaviour_counts"]["rumination"] == 2
+    page = u.get(f"/api/workspaces/{ws}/detections?analysis={aid}")
+    assert page.status_code == 200 and page.json()["total"] == 4
+    assert u.get(f"/api/workspaces/{ws}/detections/export.csv?analysis={aid}").status_code == 200
+    # the filter only accepts the 4 current classes
+    assert u.get(f"/api/workspaces/{ws}/detections?behaviour=rumination").status_code == 422
 
 
 def test_stale_camera_sessions_are_closed(make_user):

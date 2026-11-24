@@ -1,7 +1,7 @@
 // Mirrors backend/app/schemas.py
 
 export type Role = 'admin' | 'member'
-export type Behaviour = 'standing' | 'lying' | 'foraging' | 'drinking' | 'rumination'
+export type Behaviour = 'standing' | 'lying' | 'foraging' | 'drinking'
 
 export interface User {
   id: number

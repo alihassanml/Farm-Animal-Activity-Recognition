@@ -20,7 +20,7 @@ def _utc_iso(d: datetime) -> str:
 UTCDateTime = Annotated[datetime, PlainSerializer(_utc_iso, return_type=str)]
 
 Role = Literal["admin", "member"]
-Behaviour = Literal["standing", "lying", "foraging", "drinking", "rumination"]
+Behaviour = Literal["standing", "lying", "foraging", "drinking"]
 assert set(Behaviour.__args__) == set(BEHAVIOURS)  # type: ignore[attr-defined]
 
 

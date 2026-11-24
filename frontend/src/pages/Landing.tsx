@@ -6,7 +6,7 @@ import type { Behaviour } from '../api/types'
 import { Logo } from '../components/layout/Logo'
 import { FeedFrame } from '../components/marketing/FeedFrame'
 import { Reveal, Stagger, StaggerItem } from '../components/marketing/Reveal'
-import { Badge, BehaviourBadge, StatusDot, Swatch } from '../components/ui/Badge'
+import { Badge, BehaviourBadge, Swatch } from '../components/ui/Badge'
 import { buttonClass } from '../components/ui/buttonStyles'
 import { ShareBar } from '../components/ui/DataViz'
 import { useAuth } from '../context/auth'
@@ -14,8 +14,8 @@ import { BEHAVIOUR_COLOR, BEHAVIOURS } from '../lib/behaviour'
 import { BRAND, DEMO_URL } from '../lib/brand'
 
 /* Landing page ("/").
-   Every number here comes from the project's own results (README, Explain.md):
-   test-set mAP50 per behaviour, CPU frame rate, and the alert check interval.
+   Every number here comes from the project's own results (README, Explain.md): test-set mAP50
+   of the final 4-class YOLO11s model, CPU frame rate, and the alert check interval.
    Charts marked "example" use illustrative data drawn with the same components as the app. */
 
 const NAV_LINKS = [
@@ -264,7 +264,7 @@ const STEPS = [
   {
     title: 'YOLO detects in real time',
     text: 'A YOLO11 model trained on real barn footage finds every cow, gives it a number while it stays in view, and labels what it is doing.',
-    detail: '5 behaviours · 8 updates / s',
+    detail: '4 behaviours, YOLO11s model',
   },
   {
     title: 'Alerts and insights',
@@ -278,16 +278,10 @@ function HowItWorks() {
     <section id="how-it-works" aria-labelledby="how-title" className="section-y scroll-mt-16 border-t border-line">
       <div className="container-site">
         <SectionIntro id="how-title" eyebrow="How it works" title="From camera to alert in three steps" />
-        <Stagger as="ol" className="relative mt-16 grid gap-12 md:grid-cols-3 md:gap-8">
-          {/* Connector: one vertical line on mobile; on desktop each step draws a segment to the next marker */}
-          <span className="absolute top-2 bottom-2 left-1 w-px bg-line md:hidden" aria-hidden />
+        <Stagger as="ol" className="mt-16 grid gap-12 md:grid-cols-3 md:gap-8">
           {STEPS.map((s, i) => (
-            <StaggerItem as="li" key={s.title} className="relative pl-8 md:pl-0">
-              <div className="absolute top-1 left-0 md:static md:flex md:items-center md:gap-4" aria-hidden>
-                <span className="block size-2 shrink-0 bg-ink" />
-                {i < STEPS.length - 1 && <span className="hidden h-px flex-1 bg-line-strong md:-mr-8 md:block" />}
-              </div>
-              <p className="numeric text-xs text-muted md:mt-6">0{i + 1}</p>
+            <StaggerItem as="li" key={s.title} className="border-t border-line-strong pt-6">
+              <p className="numeric text-xs text-muted">0{i + 1}</p>
               <h3 className="mt-2 text-h3">{s.title}</h3>
               <p className="mt-4 max-w-prose text-secondary">{s.text}</p>
               <p className="numeric mt-6 text-xs text-muted">{s.detail}</p>
@@ -314,7 +308,7 @@ function Features() {
             fill
             className="lg:col-span-7 lg:row-span-2"
             title="Behaviour tracking"
-            text="Standing, lying, eating, drinking and rumination, for every cow in view, around the clock. See how the herd spent the last 24 hours at a glance."
+            text="Standing, lying, eating and drinking, for every cow in view, around the clock. See how the herd spent the last 24 hours at a glance."
           >
             <UiPanel className="flex h-full flex-col p-6">
               <div className="flex items-baseline justify-between gap-4">
@@ -357,7 +351,7 @@ function Features() {
           <FeatureBlock
             className="lg:col-span-5"
             title="Health and lameness signs"
-            text="Too much lying and too little rumination are early signs of illness or lameness. Both are tracked for the whole herd."
+            text="Too much lying and too little eating are early signs of illness or lameness. Both are tracked for the whole herd."
           >
             <UiPanel className="flex flex-col gap-4 p-4">
               <div>
@@ -373,11 +367,9 @@ function Features() {
               </div>
               <div className="flex items-center justify-between border-t border-line pt-4 text-sm">
                 <span className="flex items-center gap-2">
-                  <Swatch behaviour="rumination" /> Rumination
+                  <Swatch behaviour="foraging" /> Eating
                 </span>
-                <span className="flex items-center gap-2 text-secondary">
-                  <StatusDot tone="success" /> Within normal range
-                </span>
+                <span className="text-secondary">Within normal range</span>
               </div>
             </UiPanel>
           </FeatureBlock>
@@ -464,7 +456,6 @@ function StackedArea({ className = '' }: { className?: string }) {
     lying: hours.map((h) => 14 + 22 * wave(h, 2, 3.5) + 18 * wave(h, 23, 2.5) + 6 * wave(h, 13, 2)),
     foraging: hours.map((h) => 4 + 16 * wave(h, 7, 1.5) + 14 * wave(h, 18, 1.6)),
     drinking: hours.map((h) => 2 + 5 * wave(h, 8, 1.5) + 6 * wave(h, 15, 2) + 4 * wave(h, 19, 1.4)),
-    rumination: hours.map((h) => 10 + 8 * wave(h, 4, 3) + 7 * wave(h, 12, 2.5) + 6 * wave(h, 21, 2.5)),
   }
   const max = hours.reduce((m, i) => Math.max(m, BEHAVIOURS.reduce((s, b) => s + series[b][i], 0)), 0) * 1.08
   const x = (i: number) => (i / 24) * W
@@ -518,36 +509,49 @@ function StackedArea({ className = '' }: { className?: string }) {
 
 /* ---------------------------------------------------------------- Metrics */
 
-// Test-set mAP50 per behaviour (README, YOLO11s baseline).
-const MAP50: { b: Behaviour; label: string; v: number }[] = [
-  { b: 'foraging', label: 'Eating', v: 0.855 },
-  { b: 'standing', label: 'Standing', v: 0.672 },
-  { b: 'drinking', label: 'Drinking', v: 0.605 },
-  { b: 'rumination', label: 'Rumination', v: 0.566 },
-  { b: 'lying', label: 'Lying', v: 0.474 },
+// Test-set mAP50 of the final 4-class YOLO11s model (test set split by video).
+// Only these results are confirmed; do not add numbers that are not in the results.
+// TODO: per-class mAP50 for standing, foraging and drinking on the final model (not supplied yet).
+const MAP50: { key: string; label: string; v: number; main?: boolean; old?: boolean }[] = [
+  { key: 'cbvd', label: 'CBVD-5', v: 0.762, main: true },
+  { key: 'beef', label: 'Second barn', v: 0.918 },
+  { key: 'both', label: 'Both combined', v: 0.769 },
+  { key: 'old', label: 'Old model', v: 0.635, old: true },
 ]
+
+// CPU speed of the final model, and how many frames a second monitoring stores per camera.
+const CPU_FPS = 2.9
+const MONITOR_FPS = 1
 
 function Metrics() {
   return (
     <section id="metrics" aria-labelledby="metrics-title" className="section-y scroll-mt-16 border-t border-line">
       <div className="container-site">
         <SectionIntro id="metrics-title" eyebrow="Performance" title="Measured, not promised">
-          Results from the model’s held-out test set and from running it on ordinary hardware.
+          Results on test videos the model never saw during training, and from running it on ordinary hardware.
         </SectionIntro>
 
         <Stagger className="mt-16 grid border-t border-line md:grid-cols-3">
-          <Metric value="0.86" label="Feeding detection accuracy" note="mAP50 on unseen barn video. All five behaviours: 0.64.">
-            <ul className="flex flex-col gap-2 text-xs" aria-label="mAP50 per behaviour on the test set">
+          <Metric
+            value="0.76"
+            label="Detection accuracy (mAP50)"
+            note="Standing, lying, eating and drinking, on the CBVD-5 test videos. Lying improved from 0.47 to 0.88."
+          >
+            <ul className="flex flex-col gap-2 text-xs" aria-label="mAP50 on each test set">
               {MAP50.map((m) => (
-                <li key={m.b} className="flex items-center gap-3">
-                  <span className={`w-20 shrink-0 ${m.b === 'foraging' ? 'text-ink' : 'text-muted'}`}>{m.label}</span>
+                <li key={m.key} className="flex items-center gap-3">
+                  <span className={`w-24 shrink-0 ${m.main ? 'text-ink' : 'text-muted'}`}>{m.label}</span>
                   <span className="block h-2 flex-1 bg-surface-alt">
                     <span
                       className="block h-full"
                       style={{
                         width: `${m.v * 100}%`,
-                        backgroundColor: m.b === 'foraging' ? 'var(--color-peach-600)' : 'var(--color-peach-100)',
-                        boxShadow: 'inset 0 0 0 1px var(--color-peach-600)',
+                        backgroundColor: m.old
+                          ? 'var(--color-series-neutral)'
+                          : m.main
+                            ? 'var(--color-peach-600)'
+                            : 'var(--color-peach-100)',
+                        boxShadow: `inset 0 0 0 1px ${m.old ? 'var(--color-faint)' : 'var(--color-peach-600)'}`,
                       }}
                     />
                   </span>
@@ -557,10 +561,14 @@ function Metrics() {
             </ul>
           </Metric>
 
-          <Metric value="16 fps" label="On an ordinary laptop CPU" note="About 60 ms per frame. Monitoring needs 1 frame a second per camera.">
+          <Metric
+            value={`${CPU_FPS} fps`}
+            label="On an ordinary laptop CPU"
+            note="Monitoring stores 1 frame a second per camera, so a CPU is enough for one camera. Use a GPU for more."
+          >
             <div className="flex flex-col gap-3 text-xs">
-              <CapacityBar label="Model capacity" value={16} max={16} scale="green" />
-              <CapacityBar label="One camera, monitoring" value={1} max={16} scale="neutral" />
+              <CapacityBar label="Model speed on CPU" value={CPU_FPS} max={CPU_FPS} scale="green" />
+              <CapacityBar label="One camera, monitoring" value={MONITOR_FPS} max={CPU_FPS} scale="neutral" />
             </div>
           </Metric>
 
@@ -580,6 +588,18 @@ function Metrics() {
             </div>
           </Metric>
         </Stagger>
+
+        <Reveal>
+          <div className="mt-12 max-w-prose border-t border-line pt-6 text-sm">
+            <p className="font-medium text-ink">Known limits</p>
+            <ul className="mt-2 flex flex-col gap-1 text-secondary">
+              <li>Drinking is the weakest behaviour: the test set has only 71 drinking cows.</li>
+              <li>On a laptop CPU the model runs at about 2.9 frames a second.</li>
+              <li>Cow numbers last for one session only. They cannot follow a named cow across days.</li>
+              <li>Rumination is not detected yet. It is planned as future work.</li>
+            </ul>
+          </div>
+        </Reveal>
       </div>
     </section>
   )

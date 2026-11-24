@@ -32,7 +32,7 @@ This file explains the whole project without assuming any technical background. 
 
 ## 1. The project in one minute
 
-> We built a website that watches cows through farm cameras (or uploaded photos and videos) and tells the farmer what each cow is doing. It recognises five behaviours: **standing, lying, foraging (eating), drinking and rumination (chewing the cud)**. It saves everything in a log, shows charts on a dashboard, and raises an alert when the herd behaves unusually, for example when cows have not drunk water for many hours.
+> We built a website that watches cows through farm cameras (or uploaded photos and videos) and tells the farmer what each cow is doing. It recognises four behaviours: **standing, lying, foraging (eating) and drinking**. It saves everything in a log, shows charts on a dashboard, and raises an alert when the herd behaves unusually, for example when cows have not drunk water for many hours.
 >
 > The "brain" of the system is an AI model called **YOLO11**. We trained it on a public research dataset of cow videos called **CBVD-5**.
 
@@ -81,7 +81,6 @@ Each behaviour has its own colour everywhere (boxes on photos, charts, tables):
 | Lying | Lying down and resting | Purple |
 | Foraging | Eating at the feed area | Green |
 | Drinking | Drinking at the water trough | Teal |
-| Rumination | Chewing the cud (re-chewing food) | Brown/orange |
 
 ### Two roles
 
@@ -192,7 +191,7 @@ What it contains:
 - Videos recorded by **cameras inside a real dairy-cow barn**.
 - **687 short clips**, each **10 seconds** long, with about **107 different cows**.
 - From each clip, some frames (single pictures) were **labelled by humans**: they drew a box around each cow and wrote what it was doing.
-- The **5 behaviours**: standing, lying down, foraging, drinking water, rumination.
+- The **5 behaviours** in the dataset: standing, lying down, foraging, drinking water, rumination. Our final model uses **4** of them; rumination was removed (see 9.3).
 
 ### 6.2 Why did we use a public dataset instead of making our own?
 
@@ -269,6 +268,8 @@ Example: a cow that is *lying + ruminating* becomes **rumination**. A cow that i
 
 Why this order? If posture (standing/lying) won, the activities (eating, drinking, chewing) would almost disappear, because every cow is always either standing or lying.
 
+**Final model:** this rule was used for the old 5-class model. In the final model **rumination was removed**, because it conflicted with lying: the same cow had two labels. The final model has 4 classes: standing, lying, foraging, drinking.
+
 ### Step 4: Remove broken labels
 
 A few boxes in the dataset had impossible coordinates (outside the picture). We removed them: **2 broken boxes** and **2 tiny boxes** out of 25,324.
@@ -343,48 +344,51 @@ During training the pictures are changed slightly each time, so the model doesn'
 
 All scores go from 0 to 1 (or 0 % to 100 %). Higher is better.
 
-### 9.2 Our final results (test set: pictures the model never saw)
+### 9.2 Our final results (test set: videos the model never saw)
 
-| Behaviour | mAP50 | mAP50-95 | F1 |
-|---|---|---|---|
-| Standing | 0.672 | 0.313 | 0.691 |
-| Lying | 0.474 | 0.215 | 0.476 |
-| Foraging | **0.855** | **0.564** | **0.833** |
-| Drinking | 0.605 | 0.277 | 0.585 |
-| Rumination | 0.566 | 0.300 | 0.601 |
-| **Overall** | **0.635** | **0.334** | **0.641** |
+The final model is **YOLO11s with 4 classes** (standing, lying, foraging, drinking) and a confidence threshold of **0.45**. The test sets are split by video.
 
-On the validation set the overall mAP50 was **0.685**.
+| Test set | Final model mAP50 | Old 5-class model mAP50 |
+|---|---|---|
+| CBVD-5 | **0.762** | 0.635 |
+| Second barn (Beef Cattle dataset) | **0.918** | n/a |
+| Both datasets combined | **0.769** | n/a |
+
+The biggest gain is **lying: from 0.474 to 0.875**.
+
+<!-- TODO: add final-model mAP50 per class for standing, foraging and drinking when the numbers are available. Do not guess them. -->
+
+**Why YOLO11s?** We compared it with YOLO11m and YOLOv8s. YOLO11s gave the **fewest false boxes (0.58 per image)**, and it is the **smallest and fastest** of the three.
 
 **How to say it in plain words:**
-> "On new videos the model has never seen, it correctly finds and labels cows about 64 % of the time overall. It is best at recognising **eating (about 85 %)** and weakest at telling **lying** apart from **rumination**."
+> "On new barn videos the model has never seen, it scores 0.76 mAP50, up from 0.64 with our first model. On a second barn it scores 0.92. Lying, which used to be the weakest behaviour, went from 0.47 to 0.88."
 
-### 9.3 Why are lying and rumination confused?
+### 9.3 Why was rumination removed?
 
 - **Rumination means chewing**, which is a **movement of the jaw over time**. A single still photo cannot show movement.
 - A cow lying quietly and a cow lying while chewing look **almost the same in one picture**.
-- Because of our priority rule, "lying + chewing" is labelled *rumination* and "lying only" is labelled *lying*, so the model has to guess between two very similar pictures.
+- In the dataset the same cow often had **two labels** (lying and rumination). This conflict confused the model and pulled lying down to 0.474.
 
-The **confusion matrix** (a table of "true behaviour vs predicted behaviour") shows exactly this: many real *lying* cows were predicted as *rumination*, and the other way round.
+So in the final model we **removed rumination**. Lying then went up to **0.875**. Detecting rumination needs a model that looks at several frames (a video model). This is **future work**.
 
-The researchers who made CBVD-5 also found rumination and drinking to be the hardest behaviours, even with a video model. So this is a **known, honest limitation**, not a bug.
+### 9.4 Known limits of the final model
 
-### 9.4 Real test on a barn picture
-
-When we gave the website a real barn frame with two cows, it found both: one **standing (84 % confidence)** and one **ruminating (77 % confidence)**, matching the human labels.
+- **Drinking is the weakest class.** The test set has only **71 drinking cows**, so there are few examples to learn from and to test on.
+- **Speed on a CPU is about 2.9 frames per second.** That is enough for one or two monitored cameras (each stores 1 frame a second). More cameras need a GPU.
+- **Cow numbers last for one session only.** Tracking cannot follow a named cow across days.
 
 ---
 
 ## 10. The next improvement: two models instead of one
 
-The core issue is that a cow has a **posture** *and* an **activity** at the same time (e.g. lying + ruminating), but one YOLO box can only have one label.
+The core issue is that a cow has a **posture** *and* an **activity** at the same time (e.g. standing + eating), but one YOLO box can only have one label.
 
 **Planned solution ("dual mode"):**
 
 - **Model 1, posture:** standing or lying (every cow has one).
-- **Model 2, state/activity:** foraging, drinking or rumination (only when the cow is doing one).
+- **Model 2, state/activity:** foraging or drinking (only when the cow is doing one).
 - The system runs both models on the same picture and **joins the results** for each cow by checking which boxes overlap (IoU ≥ 50 %).
-- Result per cow: e.g. **posture = lying, state = rumination**.
+- Result per cow: e.g. **posture = standing, state = foraging**.
 
 The website **already supports this**. One setting changes it: `MODEL_MODE=dual` in the settings file. Only the two new models still need to be trained.
 
@@ -573,7 +577,7 @@ Rules are checked **every minute** for every running camera.
    - Is the file really an image, and smaller than 200 MB?
 4. The photo is saved in the `uploads` folder.
 5. The photo goes into **YOLO11**. In a fraction of a second it returns, for each cow: a box, a behaviour and a confidence.
-   - Only detections with confidence **≥ 35 %** are kept (to ignore weak guesses).
+   - Only detections with confidence **≥ 45 %** are kept (to ignore weak guesses).
 6. The cows are numbered **#1, #2, …** from left to right, and **OpenCV** draws coloured boxes with the number and behaviour on a copy of the photo.
 7. Every detection is saved in the **database** (`detections` table).
 8. The backend sends back the result. The **frontend** shows the annotated photo, the number of cows, and a table of detections.
@@ -690,10 +694,11 @@ Being honest about limits is a strength in a viva. Say these clearly:
 
 | Limitation | Why | Future fix |
 |---|---|---|
-| Lying and rumination are often confused | Chewing is movement; one photo can't show movement | Two-model approach (posture + activity), and later a **video model** that looks at several frames |
-| Drinking is less accurate | Few drinking examples (class imbalance) | Collect more drinking examples; use extra weighting for rare classes |
+| Rumination is not detected | It conflicted with lying (the same cow had two labels), and chewing is movement that one photo can't show | A **video model** that looks at several frames |
+| Drinking is the weakest class | Few drinking examples (only 71 drinking cows in the test set) | Collect more drinking examples; use extra weighting for rare classes |
+| Slow on a CPU | About 2.9 frames a second on a laptop CPU | Use a GPU for more than one or two cameras |
 | Cow IDs reset when a cow leaves the view | Tracking follows a cow only while it stays in view | **Re-identification** by coat pattern, so a cow keeps its ID across cameras and days |
-| All training data is from one barn | The dataset comes from one farm and its cameras | Test and fine-tune on footage from local Pakistani farms |
+| Tested on only two barns | CBVD-5 and the Beef Cattle dataset | Test and fine-tune on footage from local Pakistani farms |
 | "Cows detected today" is the **largest number of cows in one frame**, not a unique count | Track IDs restart when a cow comes back, so counting IDs would overcount | Re-identification (as above) |
 | No SMS/email alerts yet | Kept out of this version | Add SMS (e.g. Twilio) and email |
 | SQLite database grows quickly with many cameras | About one row per cow per second | Summarise old data, or move to PostgreSQL for big farms |
@@ -717,13 +722,13 @@ CBVD-5, a public cattle behaviour dataset published in *Scientific Reports* (202
 70 % train, 15 % validation, 15 % test, **split by video** so frames of the same clip never appear in both training and testing. Otherwise the test score would be falsely high (data leakage).
 
 **Q5. What is your accuracy?**
-On the unseen test set: overall **mAP50 = 0.635**, **F1 = 0.64**. Foraging is best (0.855), lying is weakest (0.474).
+On the unseen CBVD-5 test set the final 4-class model scores **mAP50 = 0.762** (the old 5-class model scored 0.635). On a second barn (Beef Cattle dataset) it scores **0.918**, and **0.769** on both datasets combined. Lying improved from 0.474 to 0.875. Drinking is the weakest class (only 71 test cows).
 
 **Q6. What does mAP mean?**
 Mean Average Precision: it combines how often the model is right (precision) and how many cows it finds (recall), averaged over all behaviours. "50" means a box counts as correct if it overlaps the true box by at least 50 %.
 
-**Q7. Why is lying confused with rumination?**
-Rumination is jaw movement over time; a single picture can't show it, so a lying cow and a lying-and-chewing cow look the same. Our planned fix is two separate models (posture + activity), and later a video-based model.
+**Q7. Why did you remove rumination?**
+Rumination conflicted with lying: the same cow had two labels, and chewing is jaw movement that a single picture can't show. Removing it raised lying from 0.474 to 0.875 and the overall score from 0.635 to 0.762. Rumination needs a video-based model, which is future work.
 
 **Q8. What is transfer learning and did you use it?**
 Yes. We started from a YOLO11s model already trained on the COCO dataset (general objects) and fine-tuned it on cow behaviours. This needs less data and less time than training from scratch.
@@ -744,10 +749,10 @@ Passwords are hashed with bcrypt; login uses a signed token in an httpOnly cooki
 FastAPI is lighter and faster for an AI-serving API and fits naturally with the Python model. SQLite needs no separate database server, which suits a single-farm deployment and a student project. The data layer uses SQLAlchemy, so switching to MySQL or PostgreSQL later needs only a settings change. React gives a modern, responsive dashboard. *(Tip: update the SRS to match, or mention this decision to your supervisor.)*
 
 **Q14. Can it identify individual cows?**
-It **tracks** each cow while it is in view: every cow gets a number (#1, #2, …) that stays the same from frame to frame, so we can say "cow #3 was ruminating from 0:05 to 0:47". It does not know *which* cow it is (its name or tag), and a cow that leaves the view and comes back gets a new number. Knowing the actual cow needs re-identification, which is future work. See section 11.5 for how tracking works.
+It **tracks** each cow while it is in view: every cow gets a number (#1, #2, …) that stays the same from frame to frame, so we can say "cow #3 was eating from 0:05 to 0:47". It does not know *which* cow it is (its name or tag), and a cow that leaves the view and comes back gets a new number. Knowing the actual cow needs re-identification, which is future work. See section 11.5 for how tracking works.
 
 **Q15. How fast is it?**
-About 5 ms per image on a GPU and about 60 ms per frame (≈ 16 fps) on a normal laptop CPU. A camera nobody is watching is analysed once per second, so one ordinary computer can handle several cameras; while someone watches the live view, the boxes refresh up to 8 times a second (about 7 on our test laptop) and the video runs at full speed (25 fps).
+About **2.9 frames per second** on a normal laptop CPU. A camera nobody is watching is analysed once per second, so a CPU can keep up with one or two cameras; more cameras need a GPU. While someone watches the live view, the boxes refresh as fast as the computer allows (at most 8 times a second) and the video itself runs at full speed (25 fps).
 
 **Q16. What happens if the camera disconnects?**
 The camera's card on the Cameras page shows "Error" with the reason, and the system keeps trying to reconnect every 5 seconds automatically. If the *viewer's* connection drops instead, the live view page says so and reconnects by itself.
@@ -806,7 +811,7 @@ Every error message the user sees has a short **reference code**. The same code 
 | **Precision** | When the model says X, how often it is right |
 | **Pre-trained** | A model that has already learned from a big dataset |
 | **Recall** | Of all real X, how many the model found |
-| **Rumination** | A cow chewing the cud (bringing food back up and chewing it again), a sign of healthy digestion |
+| **Rumination** | A cow chewing the cud (bringing food back up and chewing it again), a sign of healthy digestion. Not detected by the final model (future work) |
 | **RTSP** | The standard way CCTV/IP cameras stream live video |
 | **Snapshot** | The newest single picture from a camera (used on the camera cards) |
 | **Tracking / track ID** | Following each cow from frame to frame and giving it a number (#1, #2, …) |

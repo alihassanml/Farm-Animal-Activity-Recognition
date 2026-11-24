@@ -1,0 +1,31 @@
+# Run the whole app with Docker:
+#   1. Put the trained model at backend/models/best.pt (or copy Notebook/model/best.pt there).
+#   2. Create a .env file next to this file with a long random secret:
+#        JWT_SECRET=<output of: python -c "import secrets; print(secrets.token_urlsafe(48))">
+#   3. docker compose up --build
+#   4. Open http://localhost:8080
+# Serving over HTTPS? Also set COOKIE_SECURE=true and FRONTEND_URL=https://your-domain in .env.
+services:
+  backend:
+    build: ./backend
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env next to docker-compose.yml}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      MODEL_MODE: single
+      CONF_THRESHOLD: "0.45"
+    volumes:
+      - ./backend/models:/app/models:ro
+      - farm-data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  farm-data:

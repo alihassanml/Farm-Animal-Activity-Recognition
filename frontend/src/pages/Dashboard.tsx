@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { cameraApi, dashboardApi } from '../api/endpoints'
 import type { Alert, Camera, DashboardSummary } from '../api/types'
-import { Badge, BehaviourBadge, StatusDot, Swatch } from '../components/ui/Badge'
+import { Badge, BehaviourBadge, Swatch } from '../components/ui/Badge'
 import { ButtonLink } from '../components/ui/Button'
 import { Card, CardBody, CardHeader, PageHeader } from '../components/ui/Card'
 import { CompositionBar, ShareBar, Sparkline } from '../components/ui/DataViz'
@@ -233,7 +233,6 @@ function HerdSignals({ data, total }: { data: DashboardSummary; total: number })
   const lastSeen = [
     { label: 'Last drinking seen', at: data.last_seen.drinking },
     { label: 'Last eating seen', at: data.last_seen.foraging },
-    { label: 'Last rumination seen', at: data.last_seen.rumination },
   ]
   return (
     <Card>
@@ -356,10 +355,7 @@ function CameraItem({ camera: c }: { camera: Camera }) {
           <p className="truncate text-sm text-ink">{c.name}</p>
           <p className="truncate text-xs text-muted">{c.location ?? KIND_LABEL[c.kind]}</p>
         </div>
-        <span className="flex items-center gap-2 text-xs text-secondary">
-          <StatusDot tone={s.tone} />
-          {s.label}
-        </span>
+        <span className={`text-xs ${s.tone === 'danger' ? 'text-critical' : 'text-secondary'}`}>{s.label}</span>
       </Link>
     </li>
   )

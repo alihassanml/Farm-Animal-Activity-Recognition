@@ -5,7 +5,6 @@ import { errorMessage } from '../api/client'
 import { cameraApi } from '../api/endpoints'
 import type { Camera, CameraKind } from '../api/types'
 import { ModelStatus } from '../components/ModelStatus'
-import { StatusDot } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, PageHeader } from '../components/ui/Card'
 import { Input, Select } from '../components/ui/Field'
@@ -92,10 +91,7 @@ function CameraCard({ camera: c }: { camera: Camera }) {
           <p className="truncate text-sm font-medium text-ink">{c.name}</p>
           <p className="truncate text-xs text-muted">{c.location ?? KIND_LABEL[c.kind]}</p>
         </div>
-        <span className="flex shrink-0 items-center gap-2 text-xs text-secondary">
-          <StatusDot tone={status.tone} />
-          {status.label}
-        </span>
+        <span className={`shrink-0 text-xs ${status.tone === 'danger' ? 'text-critical' : 'text-secondary'}`}>{status.label}</span>
       </div>
     </Link>
   )

@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     model_path: Path = Path("models/best.pt")
     posture_model_path: Path = Path("models/best_posture.pt")
     state_model_path: Path = Path("models/best_state.pt")
-    conf_threshold: float = Field(default=0.35, gt=0, lt=1)
+    conf_threshold: float = Field(default=0.45, gt=0, lt=1)
     merge_iou: float = Field(default=0.5, gt=0, le=1)
     inference_imgsz: int = Field(default=640, ge=32, le=4096)
 

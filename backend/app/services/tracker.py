@@ -68,7 +68,7 @@ def vote(seq: Sequence[Hashable]):
 
 class CowTracker:
     def __init__(self, match_iou: float = 0.3, max_lost: int = 5, smooth_window: int = 5, joint_labels: bool = True):
-        """joint_labels: smooth (posture, state) as one label. Use it for the 5-class model, which gives
+        """joint_labels: smooth (posture, state) as one label. Use it for the single model, which gives
         each cow a single label; the dual-model mode smooths posture and state separately."""
         self.match_iou = match_iou
         self.max_lost = max_lost

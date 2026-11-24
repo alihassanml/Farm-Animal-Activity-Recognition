@@ -1,8 +1,9 @@
 """Insert diagrams into the FYP document automatically.
 
-Put this script, the .docx file and all the images in the same folder, then run:
+The script and the .docx file live in docs/; the images are read from diagram/png/
+(or from docs/ if a picture is put next to the script). Run:
     pip3 install python-docx
-    python3 insert_images.py
+    python3 docs/insert_images.py
 
 Every placeholder like  [Insert diagram: 04_use_case_diagram.png]  is replaced by that image.
 The result is saved as a new file; the original is not changed.
@@ -14,9 +15,14 @@ from docx import Document
 from docx.image.image import Image as DocxImage
 from docx.shared import Inches
 
-FOLDER = Path(__file__).resolve().parent
-SOURCE = FOLDER / "FYP_Farm_Animal_Activity_Recognition.docx"
-OUTPUT = FOLDER / "FYP_Farm_Animal_Activity_Recognition_with_images.docx"
+FOLDER = Path(__file__).resolve().parent  # docs/
+IMAGE_FOLDERS = [FOLDER.parent / "diagram" / "png", FOLDER]
+# The report is "FYP Document.docx"; older copies used the long name.
+SOURCE = next(
+    (p for p in (FOLDER / "FYP Document.docx", FOLDER / "FYP_Farm_Animal_Activity_Recognition.docx") if p.exists()),
+    FOLDER / "FYP Document.docx",
+)
+OUTPUT = SOURCE.with_name(SOURCE.stem + " with images.docx")
 MAX_WIDTH, MAX_HEIGHT = 6.0, 7.5          # inches; keeps tall diagrams on one page
 PATTERN = re.compile(r"\[Insert diagram:\s*([^\]]+?)\]")
 
@@ -52,8 +58,8 @@ def main():
             continue
         # file names may include a note in brackets, e.g. "results.png (runs/...)"
         name = match.group(1).split(" (")[0].strip()
-        path = FOLDER / name
-        if not path.exists():
+        path = next((d / name for d in IMAGE_FOLDERS if (d / name).exists()), None)
+        if path is None:
             missing.append(name)
             continue
         # remove the dashed placeholder border and the placeholder text
@@ -70,7 +76,7 @@ def main():
     doc.save(OUTPUT)
     print(f"Inserted {len(done)} images -> {OUTPUT.name}")
     if missing:
-        print("Not found in this folder (check the file names):")
+        print("Not found in diagram/png/ or docs/ (check the file names):")
         for m in missing:
             print("  -", m)
 
